@@ -1,0 +1,499 @@
+package com.fudian.szhjg.busiservice.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.common.utils.SecurityUtils;
+import com.fudian.common.utils.uuid.IdUtils;
+import com.fudian.szhjg.busiservice.FJService;
+import com.fudian.szhjg.mapper.TJianjiMapper;
+import com.fudian.szhjg.mapper.TJuanjiMapper;
+import com.fudian.szhjg.pojo.TJianji;
+import com.fudian.szhjg.pojo.TJuanji;
+import com.fudian.szhjg.pojo.TTaskPiece;
+import com.fudian.szhjg.pojo.vo.TaskPieceVO;
+import com.fudian.szhjg.service.TJianjiService;
+import com.fudian.szhjg.service.TJuanjiService;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+public class FJServiceImpl implements FJService {
+
+    @Autowired
+    private TJuanjiMapper tJuanjiMapper;
+    @Autowired
+    private TJuanjiService tJuanjiService;
+
+    @Autowired
+    private TJianjiMapper tJianjiMapper;
+    @Autowired
+    private TJianjiService tJianjiService;
+
+
+
+    //查询分件列表
+    @Override
+    public CommonGridResult searchSubdivisionList(TJianji tJianji) {
+        PageHelper.startPage(tJianji.getPageNum(),tJianji.getPageSize());
+        LambdaQueryWrapper<TJianji> pieceWrapper = new LambdaQueryWrapper<>();
+        pieceWrapper.eq(TJianji::getAjId,tJianji.getAjId()).eq(TJianji::getSfsy,"是");
+        pieceWrapper.orderByAsc(TJianji::getYm);
+        List<TJianji> list = tJianjiService.list(pieceWrapper);
+        if (list.size() != 0) {
+            for (TJianji piece : list){
+                LambdaQueryWrapper<TJianji> wrapper =  new LambdaQueryWrapper<>();
+                wrapper.eq(TJianji::getAjId,piece.getAjId()).eq(TJianji::getJh,piece.getJh()).eq(TJianji::getSfsy,"否");
+                wrapper.orderByAsc(TJianji::getYm);
+                List<TJianji> listPiece = tJianjiService.list(wrapper);
+                piece.setChildren(listPiece);
+            }
+        }
+        Page<TTaskPiece> page = (Page) list;
+        return new CommonGridResult(tJianji.getPageNum(), tJianji.getPageSize(), page.getTotal(), list);
+    }
+
+
+    //查询案卷中最后件号
+    @Override
+    public String finallyNumber(String fjId) {
+        LambdaQueryWrapper<TJianji> pieceWrapper = new LambdaQueryWrapper<>();
+        pieceWrapper.eq(TJianji::getAjId,fjId).eq(TJianji::getSfsy,"是");
+        List<TJianji> jianList = tJianjiService.list(pieceWrapper);
+        //判断是否存在文件件号
+        if ( jianList.size()>0 ){
+            //比较string类型的数字的大小。
+            String str1 = "000";
+            for (TJianji piece: jianList){
+                String str2 = piece.getJh();
+                int result = str2.compareTo(str1);
+                if( result>0 ) {
+                    str1 = piece.getJh();
+                }
+            }
+            return str1;
+        }else {
+            return "000";
+        }
+    }
+
+    //查询案卷中最大页码
+    @Override
+    public Integer queryMaxYm(String fjId) { ;
+        return paginationMaximum(fjId);
+    }
+
+    //新增分件
+    @Override
+    public CommonResult insertSubdivisionAdd(TaskPieceVO taskPieceVO) {
+        //获取当前的用户
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();
+        //获取当前案卷下文件页码最大值
+        int max = paginationMaximum(taskPieceVO.getFjId());
+        //获取案卷信息
+        TJuanji taskJuan = pieceByOne(taskPieceVO.getFjId());
+
+        List<TJianji> listJi = new ArrayList<>();
+
+        //判断分件方式
+        if ("终止页号".equals(taskPieceVO.getFjfs())){
+            int a = taskPieceVO.getCountPage();
+            if (a > max) {
+                String wjbh = taskPieceVO.getBh()+"-"+taskPieceVO.getJh();
+                int a1 = max+1;
+                int a2 = 0;
+                for(int i=a1;i<=a;i++){
+                    a2++;
+                    TJianji taskJian = new TJianji();
+                    String id = IdUtils.simpleUUID();
+                    taskJian.setId(id);
+                    taskJian.setAjId(taskJuan.getId());
+                    taskJian.setJh(taskPieceVO.getJh());
+                    taskJian.setBh(wjbh);
+                    taskJian.setYm(max+=1);
+                    taskJian.setSfsy("否");
+                    taskJian.setCreateBy(userName);
+                    taskJian.setCreateTime(new Date());
+                    listJi.add(taskJian);
+                }
+                //遍历集合修改文件第一条数据
+                for (TJianji t :listJi){
+                    if (a1 == t.getYm()){
+                        t.setKsys(a1);
+                        t.setZzys(max);
+                        t.setYs(a2);
+                        t.setSfsy("是");
+                    }
+                }
+            }else {
+                return CommonResult.error(500, "终止页号已存在");
+            }
+        }else if ("页数".equals(taskPieceVO.getFjfs())){
+            int one = max+1;
+            String wjbh = taskPieceVO.getBh()+"-"+taskPieceVO.getJh();
+            int i = taskPieceVO.getCountPage();
+            for(int a=1;a<=i;a++){
+                TJianji taskJian = new TJianji();
+                String id = IdUtils.simpleUUID();
+                taskJian.setId(id);
+                taskJian.setAjId(taskJuan.getId());
+                taskJian.setJh(taskPieceVO.getJh());
+                taskJian.setBh(wjbh);
+                taskJian.setYm(max+=1);
+                taskJian.setSfsy("否");
+                taskJian.setCreateBy(userName);
+                taskJian.setCreateTime(new Date());
+                listJi.add(taskJian);
+            }
+            for (TJianji t :listJi){
+                if (one == t.getYm()){
+                    t.setKsys(one);
+                    t.setZzys(max);
+                    t.setYs(i);
+                    t.setSfsy("是");
+                }
+            }
+        }
+
+        //插入数据库
+        //boolean b = tJianjiService.saveBatch(list);
+        int b = 0;
+        if ( listJi.size()>0 ) {
+           b = tJianjiMapper.insertPiece(listJi);
+        }
+        CommonResult commonResult = new CommonResult();
+        if ( b>0 ) {
+            commonResult.setCode(200);
+            commonResult.setMsg("分件成功");
+        } else {
+            commonResult.setCode(500);
+            commonResult.setMsg("分件失败");
+        }
+        return commonResult;
+    }
+
+    //查询案卷信息
+    private TJuanji pieceByOne(String fjId) {
+        LambdaQueryWrapper<TJuanji> juanWrapper = new LambdaQueryWrapper<>();
+        juanWrapper.eq(TJuanji::getId,fjId);
+        List<TJuanji> list = tJuanjiService.list(juanWrapper);
+        TJuanji taskJuan = new TJuanji();
+        if ( list.size()>0 ){
+            taskJuan = list.get(0);
+        }
+        return taskJuan;
+    }
+    //获取当前案卷下文件页码最大值
+    private int paginationMaximum(String fjId) {
+        int max = 0;
+        LambdaQueryWrapper<TJianji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TJianji::getAjId,fjId);
+        List<TJianji> list = tJianjiService.list(wrapper);
+        if ( list.size()>0){
+            //获取指定的页码数组
+            List<Integer> lists = list.stream().map(TJianji::getYm).collect(Collectors.toList());
+            max = lists.stream().reduce(Integer::max).get();
+        }
+        return max;
+    }
+
+
+    //加页
+    @Override
+    public CommonResult additionPage(String partJH, String aId) {
+        CommonResult commonResult = new CommonResult();
+        //查询本件信息
+        List<TJianji> list = TaskPieceLists(partJH,aId);
+        //获取本件首页信息
+        TJianji task = list.get(0);
+        //获取本件最后一条信息
+        TJianji piece = list.get(list.size()-1);
+        //获取查询的下一个页码
+        Integer ym = piece.getYm()+1;
+        //获取案件中大于本件页面的信息
+        List<TJianji> listJian = GreaterList(ym,aId);
+        //给开始页数/终止页数/页数/页码,全部+1
+        for (TJianji taskPiece : listJian){
+            if ("是".equals(taskPiece.getSfsy())){
+                taskPiece.setKsys(taskPiece.getKsys()+1);
+                taskPiece.setZzys(taskPiece.getZzys()+1);
+            }
+            taskPiece.setYm(taskPiece.getYm()+1);
+        }
+        //插入新页码
+        TJianji taskJian = new TJianji();
+        BeanUtils.copyProperties(piece, taskJian);
+        taskJian.setId(IdUtils.simpleUUID());
+        taskJian.setYm(ym);
+        taskJian.setKsys(null);
+        taskJian.setZzys(null);
+        taskJian.setYs(null);
+        taskJian.setSfsy("否");
+
+        int i = tJianjiMapper.insert(taskJian);
+        boolean a = false;
+        boolean b = false;
+        if (i>0){
+            //修改本件首页信息
+            task.setZzys(ym);
+            task.setYs(task.getYs()+1);
+            a = tJianjiService.updateById(task);
+            //保存修改信息
+            if (listJian.size()>0){
+                //修改结果按照 ym 从大到小重新排序
+                listJian = listJian.stream().sorted(Comparator.comparing(TJianji::getYm).reversed()).collect(Collectors.toList());
+                b = tJianjiService.updateBatchById(listJian);
+            }else {
+                b = true;
+            }
+        }
+        if (i>0 && a && b) {
+            commonResult.setCode(200);
+            commonResult.setMsg("加页成功");
+        } else {
+            commonResult.setCode(500);
+            commonResult.setMsg("加页失败");
+        }
+        return commonResult;
+    }
+    //减页
+    @Override
+    public CommonResult subtractedPage(String partJH, String aId) {
+        CommonResult commonResult = new CommonResult();
+        //查询本件信息
+        List<TJianji> list = TaskPieceLists(partJH,aId);
+        TJianji task1 = list.get(0);  //获取文件首页的信息
+        TJianji task2 = list.get(list.size()-1);  //获取最后一条信息
+        //获取案件中大于本件页面的信息
+        Integer ym = task2.getYm()+1;
+        List<TJianji> listJian = GreaterList(ym,aId);
+        for (TJianji piece : listJian){
+            if ("是".equals(piece.getSfsy())){
+                piece.setKsys(piece.getKsys()-1);
+                piece.setZzys(piece.getZzys()-1);
+            }
+            piece.setYm(piece.getYm()-1);
+        }
+        //删除本件一条信息
+        boolean b = tJianjiService.removeById(task2.getId());
+        boolean b1 = false;
+        boolean b2 = false;
+        if (b){
+            //修改本件首页信息
+            task1.setZzys(task1.getZzys()-1);
+            task1.setYs(task1.getYs()-1);
+            b1 = tJianjiService.updateById(task1);
+            if (listJian.size()>0){
+                b2 = tJianjiService.updateBatchById(listJian);
+            }else {
+                b2 = true;
+            }
+        }
+        if (b && b1 && b2){
+            commonResult.setCode(200);
+            commonResult.setMsg("减页成功");
+        }else {
+            commonResult.setCode(500);
+            commonResult.setMsg("减页成功");
+        }
+        return commonResult;
+    }
+
+    //查询案卷下的其中一件的信息
+    private List<TJianji> TaskPieceLists(String partJH, String aId) {
+        LambdaQueryWrapper<TJianji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TJianji::getJh,partJH).eq(TJianji::getAjId,aId);
+        wrapper.orderByAsc(TJianji::getYm);
+        return tJianjiService.list(wrapper);
+    }
+    //查询大于等于页码的数据
+    private List<TJianji> GreaterList(Integer ym, String aId) {
+        LambdaQueryWrapper<TJianji> pieceWrapper = new LambdaQueryWrapper<>();
+        pieceWrapper.eq(TJianji::getAjId,aId);
+        pieceWrapper.ge(TJianji::getYm,ym);
+        pieceWrapper.orderByAsc(TJianji::getYm);
+        return tJianjiService.list(pieceWrapper);
+    }
+
+    //拆件
+    @Override
+    public CommonResult disassemblePCS(String wId, String partJH, String aId) {
+        CommonResult commonResult = new CommonResult();
+        //获取案卷信息
+        TJuanji taskJuan = pieceByOne(aId);
+        String ajDh = taskJuan.getBh();        //获取案卷档号
+        //获取案件信息
+        List<TJianji> taskList = TaskPieceLists(partJH,aId);
+        TJianji task1 = taskList.get(0);                    //获取第一条
+        TJianji task2 = taskList.get(taskList.size()-1);    //获取最后一条
+
+        //获取当前拆件的信息
+        TJianji taskX = taskList.stream().filter(s -> Objects.equals(s.getId(), wId)).findFirst().orElse(null);
+        if ( taskX==null ){
+            return new CommonResult(500,"拆件失败");
+        }
+        //获取件号,件号:+1; 组合文件档号: 案卷档号+件号
+        String taskJH = taskX.getJh();
+        int num = Integer.parseInt(taskJH);   //将字符串解析为整数类型
+        num += 1;                             //对整数进行加1操作
+        taskJH = String.format("%03d", num);  // 将整数类型转换为字符串类型
+        String wjDH = ajDh+"-"+taskJH;
+
+        //修改当前件
+        for (TJianji piece : taskList){
+            if ("是".equals(piece.getSfsy())){
+                piece.setZzys(taskX.getYm()-1);
+                Integer ys = taskX.getYm()-piece.getYm();
+                piece.setYs(ys);
+            }
+            if ( piece.getYm() >= taskX.getYm() ){
+                if (taskX.getId().equals(piece.getId())){
+                    piece.setKsys(piece.getYm());
+                    piece.setZzys(task2.getYm());
+                    Integer ys = task2.getYm()-piece.getYm()+1;
+                    piece.setYs(ys);
+                    piece.setSfsy("是");
+                }
+                piece.setJh(taskJH);
+                piece.setBh(wjDH);
+            }
+        }
+
+        //取案件中大于本件的其他件信息
+        Integer ym = task2.getYm()+1;
+        List<TJianji> pieceLists = GreaterList(ym,aId);
+        //循环进行修改件号/档号
+        for (TJianji piece :pieceLists){
+            int wJH = Integer.parseInt(piece.getJh()) +1;
+            String s1 = String.format("%03d", wJH);
+            String s2 = ajDh+"-"+s1;
+            piece.setJh(s1);
+            piece.setBh(s2);
+        }
+        //保存
+        boolean b1 = tJianjiService.updateBatchById(taskList);
+        boolean b2 = true;
+        if (pieceLists.size()>0){
+            b2 = tJianjiService.updateBatchById(pieceLists);
+        }
+        if ( b1 && b2 ){
+            commonResult.setCode(200);
+            commonResult.setMsg("拆件成功");
+        }else {
+            commonResult.setCode(200);
+            commonResult.setMsg("拆件成功");
+        }
+        return commonResult;
+    }
+    //合件
+    @Override
+    public CommonResult assemblyPCS(String partJH, String aId) {
+        CommonResult commonResult = new CommonResult();
+        //获取案卷信息
+        TJuanji taskJuan = pieceByOne(aId);
+        String ajDh = taskJuan.getBh();        //获取案卷档号
+        //获取案件信息
+        List<TJianji> taskList = TaskPieceLists(partJH,aId);
+        TJianji task = taskList.get(taskList.size()-1);    //获取最后一条
+        //获取件号,件号:-1; 组合文件档号: 案卷档号+件号
+        int num = Integer.parseInt(partJH)-1;
+        String taskJH = String.format("%03d", num);
+        String wjDH = ajDh+"-"+taskJH;
+        //查询上一件
+        LambdaQueryWrapper<TJianji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TJianji::getJh,taskJH).eq(TJianji::getAjId,aId).eq(TJianji::getSfsy,"是");
+        List<TJianji> list = tJianjiService.list(wrapper);
+        TJianji taskPiece = new TJianji();
+        if (list.size()>0){
+            taskPiece = list.get(0);
+        }else {
+            return new CommonResult(500,"合件失败");
+        }
+        String aExample = "";
+        for (TJianji piece : taskList){
+           if ("是".equals(piece.getSfsy())){
+               aExample = piece.getId();
+               //piece.setKsys(null);
+               //piece.setZzys(null);
+               //piece.setYs(null);
+               piece.setSfsy("否");
+           }
+           piece.setJh(taskJH);
+           piece.setBh(wjDH);
+        }
+        //取案件中大于本件的其他件信息
+        Integer ym = task.getYm()+1;
+        List<TJianji> pieceLists = GreaterList(ym,aId);
+        for (TJianji piece : pieceLists){
+            int wJH = Integer.parseInt(piece.getJh()) -1;
+            String s1 = String.format("%03d", wJH);
+            String s2 = ajDh+"-"+s1;
+            piece.setJh(s1);
+            piece.setBh(s2);
+        }
+        //修改保存
+        taskPiece.setZzys(task.getYm());
+        Integer ys = task.getYm()-taskPiece.getYm()+1;
+        taskPiece.setYs(ys);
+        boolean b1 = tJianjiService.updateById(taskPiece);
+        boolean b2 = false;
+        boolean b3 = true;
+        if (b1){
+            b2 = tJianjiService.updateBatchById(taskList);
+            if (pieceLists.size()>0){
+                b3 = tJianjiService.updateBatchById(pieceLists);
+            }
+            //自定义修改不是首页确有起始/终止页数的
+            TJianji jian = queryExampleSingle(aExample);
+            //boolean b = tJianjiService.updateById(jian);
+            if (StringUtils.isNotBlank(jian.getId())){
+                boolean b = tJianjiMapper.updateCustomize(jian.getId());
+            }
+        }
+        if (b1 && b2 &&b3){
+            commonResult.setCode(200);
+            commonResult.setMsg("合件成功");
+        }else {
+            commonResult.setCode(500);
+            commonResult.setMsg("合件成功");
+        }
+        return commonResult;
+    }
+
+    //获取不是首页确有起始/终止页数的
+    private TJianji queryExampleSingle(String aExample) {
+        LambdaQueryWrapper<TJianji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TJianji::getId,aExample).eq(TJianji::getSfsy,"否");
+        List<TJianji> list = tJianjiService.list(wrapper);
+        TJianji tJianji = new TJianji();
+        if ( list.size()>0 ){
+            tJianji = list.get(0);
+        }
+        return tJianji;
+    }
+
+
+    //清空文件
+    @Override
+    public CommonResult emptyPCS(String aId) {
+        CommonResult commonResult = new CommonResult();
+        LambdaQueryWrapper<TJianji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TJianji::getAjId,aId);
+        boolean b = tJianjiService.remove(wrapper);
+        if (b) {
+            commonResult.setCode(200);
+            commonResult.setMsg("清空文件成功");
+        } else {
+            commonResult.setCode(500);
+            commonResult.setMsg("清空文件失败");
+        }
+        return commonResult;
+    }
+}

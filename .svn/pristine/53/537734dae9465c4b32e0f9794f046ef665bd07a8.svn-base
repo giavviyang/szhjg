@@ -1,0 +1,10 @@
+package com.fudian.szhjg.busiservice;
+
+import com.fudian.common.pojo.CommonResult;
+
+public interface AHomePageService {
+
+    //查询处理任务(已处理和未处理)
+    CommonResult queryProcessingTask();
+
+}

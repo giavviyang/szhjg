@@ -1,0 +1,38 @@
+package com.fudian.szhjg.pojo.vo;
+
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+
+@Data
+@ApiModel(value = "任务_案卷表VO类")
+public class TaskJuanVO {
+
+    @ApiModelProperty(value="批次号(id)")
+    private String pcId;
+
+    @ApiModelProperty(value="项目id")
+    private String projectId;
+
+
+    @ApiModelProperty(value="全宗号")
+    private String qzh;
+
+    @ApiModelProperty(value="目录号")
+    private String mlh;
+
+    @ApiModelProperty(value="年度")
+    private String nd;
+
+    @ApiModelProperty(value="保管期限")
+    private String bgqx;
+
+
+    @ApiModelProperty(value="起始案卷号")
+    private String startNumber;
+
+    @ApiModelProperty(value="终止案卷号")
+    private String terminateNumber;
+
+
+}

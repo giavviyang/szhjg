@@ -1,0 +1,21 @@
+package com.fudian.szhjg.busiservice;
+
+import com.fudian.common.pojo.CommonResult;
+
+import java.util.List;
+
+public interface RwglService {
+
+    //查询项目中的工序
+    List<Object> queryWorking(String cxId, String type);
+
+    //释放当前案卷绑定用户(领取人)
+    CommonResult releaseRecipient(String nameId);
+
+    //删除案卷关联表信息
+    CommonResult deleteCorrelationTable(String id);
+
+    //默认删除数据(后台方法[开发测试专用])
+    CommonResult defaultDeleteData();
+
+}

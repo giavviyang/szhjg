@@ -1,0 +1,425 @@
+package com.fudian.szhjg.pojo;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fudian.common.pojo.BaseEntity;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+
+import java.io.Serializable;
+import java.util.Date;
+import java.util.List;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+
+/**
+ * 任务_件级表
+ */
+@ApiModel(value="任务_件级表  TTaskPiece")
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@TableName(value = "t_task_piece")
+public class TTaskPiece extends BaseEntity implements Serializable {
+    /**
+     * 主键
+     */
+    @TableId(value = "id", type = IdType.INPUT)
+    @ApiModelProperty(value="主键")
+    private String id;
+
+    /**
+     * 案卷表(id)
+     */
+    @TableField(value = "aj_id")
+    @ApiModelProperty(value="案卷表(id)")
+    private String ajId;
+
+    /**
+     * 全宗号
+     */
+    @TableField(value = "qzh")
+    @ApiModelProperty(value="全宗号")
+    private String qzh;
+
+    /**
+     * 目录号
+     */
+    @TableField(value = "mlh")
+    @ApiModelProperty(value="目录号")
+    private String mlh;
+
+    /**
+     * 案卷号
+     */
+    @TableField(value = "ajh")
+    @ApiModelProperty(value="案卷号")
+    private String ajh;
+
+    /**
+     * 件号
+     */
+    @TableField(value = "jh")
+    @ApiModelProperty(value="件号")
+    private String jh;
+
+    /**
+     * 档号
+     */
+    @TableField(value = "dh")
+    @ApiModelProperty(value="档号")
+    private String dh;
+
+    /**
+     * 开始页数
+     */
+    @TableField(value = "ksys")
+    @ApiModelProperty(value="开始页数")
+    private Integer ksys;
+
+    /**
+     * 终止页数
+     */
+    @TableField(value = "zzys")
+    @ApiModelProperty(value="终止页数")
+    private Integer zzys;
+
+    /**
+     * 页码
+     */
+    @TableField(value = "ym")
+    @ApiModelProperty(value="页码")
+    private Integer ym;
+
+    /**
+     * 页数
+     */
+    @TableField(value = "ys")
+    @ApiModelProperty(value="页数")
+    private Integer ys;
+
+    /**
+     * 是否首页
+     */
+    @TableField(value = "sfsy")
+    @ApiModelProperty(value="是否首页")
+    private String sfsy;
+
+    /**
+     * 图片地址
+     */
+    @TableField(value = "tpdz")
+    @ApiModelProperty(value="图片地址")
+    private String tpdz;
+
+    /**
+     * 图片名称
+     */
+    @TableField(value = "tpmc")
+    @ApiModelProperty(value="图片名称")
+    private String tpmc;
+
+    /**
+     * 责任者
+     */
+    @TableField(value = "zrz")
+    @ApiModelProperty(value="责任者")
+    private String zrz;
+
+    /**
+     * 题名
+     */
+    @TableField(value = "tm")
+    @ApiModelProperty(value="题名")
+    private String tm;
+
+    /**
+     * 形成时间
+     */
+    @TableField(value = "xcsj")
+    @ApiModelProperty(value="形成时间")
+    private String xcsj;
+
+    /**
+     * 民国纪年(民国时间)
+     */
+    @TableField(value = "mgsj")
+    @ApiModelProperty(value="民国纪年(民国时间)")
+    private String mgsj;
+
+    /**
+     * 关键词
+     */
+    @TableField(value = "gjc")
+    @ApiModelProperty(value="关键词")
+    private String gjc;
+
+    /**
+     * 附注
+     */
+    @TableField(value = "fz")
+    @ApiModelProperty(value="附注")
+    private String fz;
+
+    /**
+     * 附件题名
+     */
+    @TableField(value = "fjtm")
+    @ApiModelProperty(value="附件题名")
+    private String fjtm;
+
+    /**
+     * 文件编号
+     */
+    @TableField(value = "wjbh")
+    @ApiModelProperty(value="文件编号")
+    private String wjbh;
+
+    /**
+     * 分类号
+     */
+    @TableField(value = "flh")
+    @ApiModelProperty(value="分类号")
+    private String flh;
+
+    /**
+     * 语种
+     */
+    @TableField(value = "yz")
+    @ApiModelProperty(value="语种")
+    private String yz;
+
+    /**
+     * 控制标识
+     */
+    @TableField(value = "kzbs")
+    @ApiModelProperty(value="控制标识")
+    private String kzbs;
+
+    /**
+     * 密级
+     */
+    @TableField(value = "mj")
+    @ApiModelProperty(value="密级")
+    private String mj;
+
+    /**
+     * 保管期限
+     */
+    @TableField(value = "bgqx")
+    @ApiModelProperty(value="保管期限")
+    private String bgqx;
+
+    /**
+     * 材料分类
+     */
+    @TableField(value = "clfl")
+    @ApiModelProperty(value="材料分类")
+    private String clfl;
+
+    /**
+     * 材料名称
+     */
+    @TableField(value = "clmc")
+    @ApiModelProperty(value="材料名称")
+    private String clmc;
+
+    /**
+     * 类号
+     */
+    @TableField(value = "cllh")
+    @ApiModelProperty(value="类号")
+    private String cllh;
+
+    /**
+     * 材料制成时间(年)
+     */
+    @TableField(value = "make_year")
+    @ApiModelProperty(value="材料制成时间(年)")
+    private String makeYear;
+
+    /**
+     * 材料制成时间(月)
+     */
+    @TableField(value = "make_month")
+    @ApiModelProperty(value="材料制成时间(月)")
+    private String makeMonth;
+
+    /**
+     * 材料制成时间(日)
+     */
+    @TableField(value = "make_day")
+    @ApiModelProperty(value="材料制成时间(日)")
+    private String makeDay;
+
+    /**
+     * 备注
+     */
+    @TableField(value = "remark")
+    @ApiModelProperty(value="备注")
+    private String remark;
+
+    /**
+     * 档案类型id
+     */
+    @TableField(value = "dalx_id")
+    @ApiModelProperty(value="档案类型id")
+    private String dalxId;
+
+    /**
+     * 创建人
+     */
+    @TableField(value = "create_by")
+    @ApiModelProperty(value="创建人")
+    private String createBy;
+
+    /**
+     * 创建时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @TableField(value = "create_time")
+    @ApiModelProperty(value="创建时间")
+    private Date createTime;
+
+    /**
+     * 修改人
+     */
+    @TableField(value = "update_by")
+    @ApiModelProperty(value="修改人")
+    private String updateBy;
+
+    /**
+     * 修改时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @TableField(value = "update_time")
+    @ApiModelProperty(value="修改时间")
+    private Date updateTime;
+
+    /**
+     * 修改意见
+     */
+    @TableField(value = "xgyj")
+    @ApiModelProperty(value="修改意见")
+    private String xgyj;
+
+    /**
+     * 载体形态
+     */
+    @TableField(value = "ztxt")
+    @ApiModelProperty(value="载体形态")
+    private String ztxt;
+
+    /**
+     * 政权标识
+     */
+    @TableField(value = "zqbs")
+    @ApiModelProperty(value="政权标识")
+    private String zqbs;
+
+    /**
+     * 鉴定词汇
+     */
+    @TableField(value = "jdch")
+    @ApiModelProperty(value="鉴定词汇")
+    private String jdch;
+
+    @TableField(exist = false)
+    private List<TTaskPiece> children;
+
+    public static final String COL_ID = "id";
+
+    public static final String COL_AJ_ID = "aj_id";
+
+    public static final String COL_QZH = "qzh";
+
+    public static final String COL_MLH = "mlh";
+
+    public static final String COL_AJH = "ajh";
+
+    public static final String COL_JH = "jh";
+
+    public static final String COL_DH = "dh";
+
+    public static final String COL_KSYS = "ksys";
+
+    public static final String COL_ZZYS = "zzys";
+
+    public static final String COL_YM = "ym";
+
+    public static final String COL_YS = "ys";
+
+    public static final String COL_SFSY = "sfsy";
+
+    public static final String COL_TPDZ = "tpdz";
+
+    public static final String COL_TPMC = "tpmc";
+
+    public static final String COL_ZRZ = "zrz";
+
+    public static final String COL_TM = "tm";
+
+    public static final String COL_XCSJ = "xcsj";
+
+    public static final String COL_MGSJ = "mgsj";
+
+    public static final String COL_GJC = "gjc";
+
+    public static final String COL_FZ = "fz";
+
+    public static final String COL_FJTM = "fjtm";
+
+    public static final String COL_WJBH = "wjbh";
+
+    public static final String COL_FLH = "flh";
+
+    public static final String COL_YZ = "yz";
+
+    public static final String COL_KZBS = "kzbs";
+
+    public static final String COL_MJ = "mj";
+
+    public static final String COL_BGQX = "bgqx";
+
+    public static final String COL_CLFL = "clfl";
+
+    public static final String COL_CLMC = "clmc";
+
+    public static final String COL_CLLH = "cllh";
+
+    public static final String COL_MAKE_YEAR = "make_year";
+
+    public static final String COL_MAKE_MONTH = "make_month";
+
+    public static final String COL_MAKE_DAY = "make_day";
+
+    public static final String COL_REMARK = "remark";
+
+    public static final String COL_DALX_ID = "dalx_id";
+
+    public static final String COL_CREATE_BY = "create_by";
+
+    public static final String COL_CREATE_TIME = "create_time";
+
+    public static final String COL_UPDATE_BY = "update_by";
+
+    public static final String COL_UPDATE_TIME = "update_time";
+
+    public static final String COL_XGYJ = "xgyj";
+
+    public static final String COL_ZTXT = "ztxt";
+
+    public static final String COL_ZQBS = "zqbs";
+
+    public static final String COL_JDCH = "jdch";
+}

@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fudian.szhjg.mapper.TBatchMapper">
+  <resultMap id="BaseResultMap" type="com.fudian.szhjg.pojo.TBatch">
+    <!--@mbg.generated-->
+    <!--@Table t_batch-->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="pc_id" jdbcType="VARCHAR" property="pcId" />
+    <result column="pc_name" jdbcType="VARCHAR" property="pcName" />
+    <result column="project_id" jdbcType="VARCHAR" property="projectId" />
+    <result column="project_name" jdbcType="VARCHAR" property="projectName" />
+    <result column="dalx" jdbcType="VARCHAR" property="dalx" />
+    <result column="juanshu" jdbcType="VARCHAR" property="juanshu" />
+    <result column="jianshu" jdbcType="VARCHAR" property="jianshu" />
+    <result column="pc_ms" jdbcType="VARCHAR" property="pcMs" />
+    <result column="prj_filepath" jdbcType="VARCHAR" property="prjFilepath" />
+    <result column="bakpath" jdbcType="VARCHAR" property="bakpath" />
+    <result column="receive_by" jdbcType="VARCHAR" property="receiveBy" />
+    <result column="receive_time" jdbcType="TIMESTAMP" property="receiveTime" />
+    <result column="lqsl" jdbcType="VARCHAR" property="lqsl" />
+    <result column="return_by" jdbcType="VARCHAR" property="returnBy" />
+    <result column="return_time" jdbcType="TIMESTAMP" property="returnTime" />
+    <result column="create_by" jdbcType="VARCHAR" property="createBy" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_by" jdbcType="VARCHAR" property="updateBy" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="remark" jdbcType="VARCHAR" property="remark" />
+    <result column="begindate" jdbcType="TIMESTAMP" property="begindate" />
+    <result column="enddate" jdbcType="TIMESTAMP" property="enddate" />
+    <result column="isfinished" jdbcType="VARCHAR" property="isfinished" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="example.oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, pc_id, pc_name, project_id, project_name, dalx, juanshu, jianshu, pc_ms, prj_filepath,
+    bakpath, receive_by, receive_time, lqsl, return_by, return_time, create_by, create_time,
+    update_by, update_time, remark, begindate, enddate, isfinished
+  </sql>
+  <select id="selectByExample" parameterType="com.fudian.szhjg.pojo.TBatchExample" resultMap="BaseResultMap">
+    <!--@mbg.generated-->
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    from t_batch
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <delete id="deleteByExample" parameterType="com.fudian.szhjg.pojo.TBatchExample">
+    <!--@mbg.generated-->
+    delete from t_batch
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <select id="countByExample" parameterType="com.fudian.szhjg.pojo.TBatchExample" resultType="java.lang.Long">
+    <!--@mbg.generated-->
+    select count(*) from t_batch
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map">
+    <!--@mbg.generated-->
+    update t_batch
+    <set>
+      <if test="record.id != null">
+        id = #{record.id,jdbcType=VARCHAR},
+      </if>
+      <if test="record.pcId != null">
+        pc_id = #{record.pcId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.pcName != null">
+        pc_name = #{record.pcName,jdbcType=VARCHAR},
+      </if>
+      <if test="record.projectId != null">
+        project_id = #{record.projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.projectName != null">
+        project_name = #{record.projectName,jdbcType=VARCHAR},
+      </if>
+      <if test="record.dalx != null">
+        dalx = #{record.dalx,jdbcType=VARCHAR},
+      </if>
+      <if test="record.juanshu != null">
+        juanshu = #{record.juanshu,jdbcType=VARCHAR},
+      </if>
+      <if test="record.jianshu != null">
+        jianshu = #{record.jianshu,jdbcType=VARCHAR},
+      </if>
+      <if test="record.pcMs != null">
+        pc_ms = #{record.pcMs,jdbcType=VARCHAR},
+      </if>
+      <if test="record.prjFilepath != null">
+        prj_filepath = #{record.prjFilepath,jdbcType=VARCHAR},
+      </if>
+      <if test="record.bakpath != null">
+        bakpath = #{record.bakpath,jdbcType=VARCHAR},
+      </if>
+      <if test="record.receiveBy != null">
+        receive_by = #{record.receiveBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.receiveTime != null">
+        receive_time = #{record.receiveTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.lqsl != null">
+        lqsl = #{record.lqsl,jdbcType=VARCHAR},
+      </if>
+      <if test="record.returnBy != null">
+        return_by = #{record.returnBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.returnTime != null">
+        return_time = #{record.returnTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.createBy != null">
+        create_by = #{record.createBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.createTime != null">
+        create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.updateBy != null">
+        update_by = #{record.updateBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.updateTime != null">
+        update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.remark != null">
+        remark = #{record.remark,jdbcType=VARCHAR},
+      </if>
+      <if test="record.begindate != null">
+        begindate = #{record.begindate,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.enddate != null">
+        enddate = #{record.enddate,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.isfinished != null">
+        isfinished = #{record.isfinished,jdbcType=VARCHAR},
+      </if>
+    </set>
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map">
+    <!--@mbg.generated-->
+    update t_batch
+    set id = #{record.id,jdbcType=VARCHAR},
+      pc_id = #{record.pcId,jdbcType=VARCHAR},
+      pc_name = #{record.pcName,jdbcType=VARCHAR},
+      project_id = #{record.projectId,jdbcType=VARCHAR},
+      project_name = #{record.projectName,jdbcType=VARCHAR},
+      dalx = #{record.dalx,jdbcType=VARCHAR},
+      juanshu = #{record.juanshu,jdbcType=VARCHAR},
+      jianshu = #{record.jianshu,jdbcType=VARCHAR},
+      pc_ms = #{record.pcMs,jdbcType=VARCHAR},
+      prj_filepath = #{record.prjFilepath,jdbcType=VARCHAR},
+      bakpath = #{record.bakpath,jdbcType=VARCHAR},
+      receive_by = #{record.receiveBy,jdbcType=VARCHAR},
+      receive_time = #{record.receiveTime,jdbcType=TIMESTAMP},
+      lqsl = #{record.lqsl,jdbcType=VARCHAR},
+      return_by = #{record.returnBy,jdbcType=VARCHAR},
+      return_time = #{record.returnTime,jdbcType=TIMESTAMP},
+      create_by = #{record.createBy,jdbcType=VARCHAR},
+      create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      update_by = #{record.updateBy,jdbcType=VARCHAR},
+      update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      remark = #{record.remark,jdbcType=VARCHAR},
+      begindate = #{record.begindate,jdbcType=TIMESTAMP},
+      enddate = #{record.enddate,jdbcType=TIMESTAMP},
+      isfinished = #{record.isfinished,jdbcType=VARCHAR}
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+</mapper>

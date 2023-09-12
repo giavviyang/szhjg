@@ -1,0 +1,30 @@
+package com.fudian.szhjg.busiservice;
+
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.szhjg.pojo.TTaskJuan;
+import com.fudian.szhjg.pojo.vo.PieceImportVO;
+import com.fudian.szhjg.pojo.vo.TaskJuanVO;
+
+import java.util.List;
+
+//任务方法
+public interface TaskService {
+
+    //批量添加任务
+    CommonResult insertBatchAdd(TaskJuanVO taskJuanVO);
+
+    //任务批量导入
+    CommonResult depotImportfile(List<TTaskJuan> juanList, String id, Integer gxxh);
+
+    //文件条目批量导入
+    CommonResult papersImportfile(List<PieceImportVO> pieceList, String type, String id, Integer gxxh);
+
+    //获取批次档案类型
+    String getOneTask(String pcId);
+
+    //查询人事档案分类
+    List<Object> queryDictType();
+    //著录--案件著录查询人事档案分类类号
+    String casePersonnelClass(String ajId, String clfl);
+
+}

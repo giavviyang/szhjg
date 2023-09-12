@@ -1,0 +1,693 @@
+<template>
+  <div class="app-plate">
+    <MainFlexibleTree :data="treeData" ref="treeData" :defaultProps="treeDefaultProps"
+                      @handleNodeClick="handleNodeClick">
+      <div slot="mainRight" style="height: 100%">
+        <el-tabs type="border-card" v-model="activeName" class="modelTabA">
+          <el-tab-pane label="模板信息" name="first" v-if="activeName==='first'">
+            <div class="btn">
+              <el-button type="primary" plain icon="el-icon-plus" v-hasPermi="['szhjg:ywgl:setfield:template:add']"
+                         size="mini" @click="addTemplate">新增级别
+              </el-button>
+              <el-button type="danger" plain icon="el-icon-delete" v-hasPermi="['szhjg:ywgl:setfield:template:delete']"
+                         size="mini" @click="deleteTemplate">删除
+              </el-button>
+            </div>
+            <TableMetadata class="tablePage" :tableData="modelTable" ref="modelTable" :hasIndex="false" :total="total"
+                           :rowId="rowId" :pageSize="queryParams.pageSize" :pageNum="queryParams.pageNum"
+                           @handleSelectionChange="handleSelectionChange" @handleChange="handleChange">
+              <template slot="table">
+                <el-table-column type="index" label="序号" width="55" show-overflow-tooltip>
+                  <template slot-scope="scope">
+                    {{ scope.row.rowIndex }}
+                  </template>
+                </el-table-column>
+                <el-table-column show-overflow-tooltip v-for="(item,index) in tableColumn" :key="item.id"
+                                 :prop="item.prop" :label="item.label" :min-width="item.width"
+                                 :formatter="item.formatter"
+                                 :class-name="item.className">
+                </el-table-column>
+                <el-table-column label="操作" width="120" class-name="operation">
+                  <template slot-scope="scope">
+                    <el-button type="text" size="mini" v-hasPermi="['szhjg:ywgl:setfield:template:setMetaData']"
+                               @click="mappingSetMapper(scope.row)">查看映射字段规则
+                    </el-button>
+                  </template>
+                </el-table-column>
+              </template>
+            </TableMetadata>
+          </el-tab-pane>
+
+          <el-tab-pane label="字段信息" name="second" v-if="activeName==='second'">
+            <div class="btn">
+              <el-button type="primary" plain icon="el-icon-plus" v-hasPermi="['szhjg:ywgl:setfield:template:setAdd']"
+                         size="mini" @click="handleSetMapper(currentVal)">设置映射字段
+              </el-button>
+              <!--<el-button type="primary" plain icon="el-icon-setting" v-hasPermi="['szhjg:ywgl:setfield:template:setRule']"
+                         size="mini" @click="editSortField">规则设置
+              </el-button>-->
+              <el-dropdown trigger="click">
+                <el-button type="info" plain icon="el-icon-setting" size="mini">规则设置<i
+                  class="el-icon-arrow-down el-icon--right"></i></el-button>
+                <el-dropdown-menu slot="dropdown">
+                  <el-dropdown-item type="primary" size="mini" icon="el-icon-view" @click.native="editSortField1"
+                                    v-hasPermi="['szhjg:ywgl:setfield:template:setEx']"
+                                    v-if="LevelType === '1' || LevelType === '2'">展示字段设置
+                  </el-dropdown-item>
+                  <el-dropdown-item type="primary" size="mini" icon="el-icon-news" @click.native="editSortField2"
+                                    v-hasPermi="['szhjg:ywgl:setfield:template:setEnA']"
+                                    v-if="LevelType === '1'">任务录入设置
+                  </el-dropdown-item>
+                  <el-dropdown-item type="primary" size="mini" icon="el-icon-notebook-2" @click.native="editSortField3"
+                                    v-hasPermi="['szhjg:ywgl:setfield:template:setEnB']"
+                                    v-if="LevelType === '1' || LevelType === '2'">著录录入设置
+                  </el-dropdown-item>
+                  <el-dropdown-item type="primary" size="mini" icon="el-icon-stopwatch" @click.native="editSortField4"
+                                    v-hasPermi="['szhjg:ywgl:setfield:template:setBh']"
+                                    v-if="LevelType === '1'">编号组成设置
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </el-dropdown>
+            </div>
+            <TableMetadata class="tablePage" ref="metaTable" :tableData="metaTable" :hasIndex="false" :isPage="false"
+                           @handleSelectionChange="handleFieldChange">
+              <template slot="table">
+                <el-table-column type="index" label="序号" width="55" show-overflow-tooltip>
+                  <template slot-scope="scope">{{ scope.row.rowIndex }}</template>
+                </el-table-column>
+                <el-table-column show-overflow-tooltip v-for="(item,index) in metaColumns" :formatter="item.formatter"
+                                 :key="index" :prop="item.prop" :label="item.label" :min-width="item.width">
+                </el-table-column>
+              </template>
+            </TableMetadata>
+          </el-tab-pane>
+        </el-tabs>
+      </div>
+    </MainFlexibleTree>
+
+    <!--新增对应-->
+    <el-dialog title="新增类型" :visible.sync="dialogVisible1" width="40%" append-to-body
+               class="dialog-style dialog-basic"
+               :close-on-click-modal="false" :close-on-press-escape="false">
+      <el-form :model="metaDataForm" ref="metaDataForm" :inline="true" :rules="formRules" label-width="110px"
+               style="display: flex;flex-flow: column;align-items: center"><br>
+        <el-form-item label="档案类型名称" prop="daId">
+          <el-select v-model="metaDataForm.daId" clearable style="width: 200px" size="mini">
+            <el-option v-for="item in dnOptions" :key="item.value" :label="item.label" :value="item.value"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类型" prop="points">
+          <el-select v-model="metaDataForm.points" clearable style="width: 200px" size="mini">
+            <el-option label="案卷级" value="0"></el-option>
+            <el-option label="文件级" value="1"></el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button size="mini" plain @click="dialogVisible1=false">取 消</el-button>
+        <el-button size="mini" plain type="primary" @click="addTemplateForm('metaDataForm')">确 定</el-button>
+      </div>
+    </el-dialog>
+
+    <!--新增映射字段-->
+    <el-dialog title="设置映射字段(字段对应)" :visible.sync="dialogVisible2" append-to-body
+               :close-on-click-modal="false"
+               :close-on-press-escape="false" width="70%" class="dialog-style dialog-basic">
+      <el-form :model="setForm" ref="setFormForm" :inline="true" label-width="100px">
+        <el-form-item label="档案名称" prop="daId">
+          <el-select v-model="setForm.daId" disabled class="rt-input" style="width: 200px" size="mini">
+            <el-option v-for="item in dnOptions" :key="item.value" :label="item.label" :value="item.value"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="类型" prop="points">
+          <el-select v-model="setForm.points" disabled class="rt-input" style="width: 200px" size="mini">
+            <el-option label="案卷级" value="0"></el-option>
+            <el-option label="文件级" value="1"></el-option>
+          </el-select>
+        </el-form-item>
+        <br/>
+      </el-form>
+      <TableMetadata style="height: calc(85vh - 200px)" :tableData="selectedTableData" :isPage="false"
+                     :hasSelection="false"
+                     :isTitle="true" :tableTitle="selectedTableTitle">
+        <template slot="table">
+          <el-table-column label="元数据名称" prop="metadataName" min-width="120">
+            <template slot-scope="scope">
+              <el-select size="mini" v-model="scope.row.metadataId" placeholder="请选择元数据中文名称" maxlength="30"
+                         filterable @change="handleChangeMeta(scope.row)" @clear="handleClear(scope.row)" clearable>
+                <el-option v-for="metaDataItem in metaDataOptions" :key="metaDataItem.id"
+                           :label="metaDataItem.metadataChinese" :value="metaDataItem.id"
+                           :disabled="!!selectedTableData.find(val => val.metadataId === metaDataItem.id)"/>
+              </el-select>
+            </template>
+          </el-table-column>
+          <el-table-column label="元数据类型" width="150" prop="metadataType">
+          </el-table-column>
+          <el-table-column label="映射字段" prop="sourceName" min-width="100">
+            <template slot-scope="scope">
+              <el-select size="mini" v-model="scope.row.sourceName" placeholder="请选择元数据中文名称" maxlength="30"
+                         filterable
+                         clearable>
+                <el-option v-for="item in currentEntityOptions[scope.row.metadataTypeValue]" :key="item.value"
+                           :label="item.label" :value="item.value"
+                           :disabled="!!selectedTableData.find(val => val.sourceName === item.value)"/>
+              </el-select>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="120" class-name="operation">
+            <template slot-scope="scope">
+              <el-button type="text" size="mini" @click="addItem(selectedTableData,scope.$index)">
+                新增
+              </el-button>
+              <el-button type="text" size="mini" :disabled="scope.$index===0"
+                         @click="deleteItem(selectedTableData,scope.$index)">移除
+              </el-button>
+            </template>
+          </el-table-column>
+        </template>
+      </TableMetadata>
+      <span slot="footer" class="dialog-footer">
+        <el-button size="mini" plain @click="dialogVisible2=false">取消</el-button>
+        <el-button size="mini" plain type="primary" @click="handleSaveMapper()">保存</el-button>
+      </span>
+    </el-dialog>
+
+    <!--设置字段-->
+    <SettingFieldLists v-if="dialogFormVisible1" ref="SettingFieldLists"></SettingFieldLists>
+
+  </div>
+</template>
+
+<script>
+import MainFlexibleTree from "@/components/public/MainBody/MainFlexibleTree";
+import TableMetadata from "@/components/public/MainBody/TableMetadata";
+import SettingFieldLists from '../template/SettingFieldLists/index';
+import {queryFilesTreeList, queryTemplateList, queryFieldsList} from '@/api/szhjg/ywgl/setfield/template';
+import {queryFilesType, queryFileAndLevelSame, deleteFileAndLevelSame} from '@/api/szhjg/ywgl/setfield/template';
+import {queryEntityClass, queryMetadataFields} from '@/api/szhjg/ywgl/setfield/template';
+import {queryMetadataType} from '@/api/szhjg/ywgl/setfield/generalPurpose';
+import {addMetadataFileLevel} from '@/api/szhjg/ywgl/setfield/template';
+
+const params = {
+  pageNum: 1,
+  pageSize: 20
+}
+export default {
+  name: "index",
+  components: {MainFlexibleTree, TableMetadata, SettingFieldLists},
+  data() {
+    return {
+      //左侧树
+      treeData: [],
+      treeDefaultProps: {label: 'archiveName', value: 'id', children: 'dalxModelLv'},
+      //左侧树是否默认展开
+      defaultExpandAll: false,
+
+      //弹窗
+      dialogFormVisible1: false,
+      dialogVisible1: false,
+      dialogVisible2: false,
+
+      // 遮罩层
+      loading: true,
+      //判断是档案/字段
+      activeName: 'first',
+
+      /*******  档案有关的  *********************************************/
+      queryParams: {
+        pageSize: 20,
+        pageNum: 1,
+        daId: '',
+      },
+      total: 0,
+      rowId: 'id',
+      modelTable: [],
+      tableColumn: [
+        {label: '档案类型', prop: 'daId', width: '100', formatter: this.daTypeOptions},
+        {
+          label: '级别', prop: 'points', width: '100', formatter: function (row, column, cellValue) {
+            return cellValue == "0" ? "案卷级" : "文件级";
+          }
+        },
+      ],
+      selectedGridCheck: [],  //选中数据
+      //档案模板
+      metaDataForm: {daId: '', points: '',},
+      formRules: {
+        daId: [
+          {required: true, message: '请选择档案类型', trigger: 'blur,change'}
+        ],
+        points: [
+          {required: true, message: '请选择类型', trigger: 'blur,change'}
+        ],
+      },
+      //档案类型名称
+      dnOptions: [],
+      //字段数据类型
+      typeOptions: [],
+
+      addDId: '',
+
+      /*******  字段有关的  *********************************************/
+      LevelType: '',  //不同级别对应不同按钮
+      currentVal: {},
+      currentTable: [],
+      metaTable: [],
+      //字段列表表头
+      metaColumns: [
+        {label: '字段名称', prop: 'sourceName', width: '150'},
+        {label: '元数据名', prop: 'metadataName', width: '150'},
+        {label: '字段类型', prop: 'metadataType', width: '100', formatter: this.zdTypeOptions},
+        //{label: '录入方式', prop: 'metadataMode', width: '100'},
+        //{label: '字段长度', prop: 'metadataLength', width: '100'},
+        {
+          label: '是否为空', prop: 'isNotNull', width: '80', formatter: function (row, column, cellValue) {
+            return cellValue == "0" ? "是" : "否";
+          }
+        },
+        {label: '排序', prop: 'sort', width: '80'},
+        {label: '创建人', prop: 'createBy', width: '80'},
+        {label: '创建时间', prop: 'createTime', width: '150'},
+      ],
+      fieldGridCheck: [],  //选中数据
+      setForm: {daId: '', points: '',},
+      selectedTableTitle: '',
+      selectedTableData: [
+        {sourceName: '', metadataId: '', metadataName: '', metadataType: '', metadataTypeValue: ''}
+      ],
+
+      //存放实体类的字段下拉框
+      entityOptions: [],
+      currentEntityOptions: {},
+      //元数据下拉框
+      metaDataOptions: [],
+      //页面跳转传值
+      pageJumpForm: {idJump: '', typeJump: '',},
+    }
+  },
+
+  mounted() {
+    this.queryLeftTreeList();
+  },
+  created() {
+    this.queryFilesOptions();
+    this.queryDictList();
+    this.handleQuery();
+    this.queryMetadataList();
+  },
+
+  methods: {
+    //查询左侧树
+    queryLeftTreeList() {
+      queryFilesTreeList().then(res => {
+        this.treeData = res.data;
+      })
+    },
+    //点击tree事件
+    handleNodeClick(val, node, component) {
+      if (node.level === 1) {
+        this.activeName = 'first';
+        this.addDId = val.id;
+        this.queryParams.daId = val.id;
+        this.handleQuery();
+      } else if (node.level === 2 || node.level === 3) {
+        //判断是案卷/文件,页面显示按钮不一样
+        this.LevelType = '1';
+        if (val.archiveName === '文件级') {
+          this.LevelType = '2';
+        }
+        this.activeName = 'second';
+        this.currentVal = val;
+        this.pageJumpForm = {idJump: val.daId, typeJump: val.points};
+        this.searchList(val);
+      }
+    },
+
+    //查询档案类型名称
+    queryFilesOptions() {
+      queryFilesType().then(res => {
+        this.dnOptions = res.data.map((item) => {
+          return item
+        })
+      })
+    },
+    //转换案类型字段
+    daTypeOptions(row, column, cellValue) {
+      let result;
+      for (var i in this.dnOptions) {
+        if (cellValue == this.dnOptions[i].value) {
+          result = this.dnOptions[i].label
+        }
+      }
+      return result;
+    },
+    //查询元数据字段类型
+    queryDictList() {
+      queryMetadataType().then(res => {
+        this.typeOptions = res.map((item) => {
+          return item;
+        });
+      });
+    },
+    //转换元数据字段
+    zdTypeOptions(row, column, cellValue) {
+      let result;
+      for (var i in this.typeOptions) {
+        if (cellValue == this.typeOptions[i].value) {
+          result = this.typeOptions[i].label
+        }
+      }
+      return result;
+    },
+
+
+    //分页器
+    handleChange(pageSize, pageNum) {
+      this.queryParams.pageSize = pageSize;
+      this.queryParams.pageNum = pageNum;
+      this.handleQuery();
+    },
+    //查询模板
+    handleQuery() {
+      queryTemplateList(this.queryParams).then(response => {
+        this.modelTable = response.rows;
+        this.total = response.total;
+        if (this.modelTable) {
+          this.modelTable.forEach((item, index) => {
+            item.rowIndex = (this.queryParams.pageNum - 1) * this.queryParams.pageSize + index + 1
+          })
+        }
+      })
+    },
+    //表格复选框
+    handleSelectionChange(selection) {
+      this.selectedGridCheck = selection
+    },
+    //新增档案模板
+    addTemplate() {
+      //this.metaDataForm.daId = '';
+      this.metaDataForm.daId = this.addDId;
+      this.metaDataForm.points = '';
+      this.dialogVisible1 = true;
+    },
+    addTemplateForm(metaDataForm) {
+      this.$refs["metaDataForm"].validate(valid => {
+        if (valid) {
+          const _this = this;
+          queryFileAndLevelSame(this.metaDataForm).then(response => {
+            if (response.data == "1") {
+              this.$message({message: "新增失败", type: 'error'});
+              return;
+            } else {
+              if (response.msg == "true") {
+                let str = this.metaDataForm.points == "0" ? "案卷级" : "文件级";
+                _this.$message.error("当前档案类型下已存在 " + str + " !");
+                return;
+              } else {
+                _this.$message({message: "新增成功", type: 'success'});
+                _this.handleQuery();
+                _this.queryLeftTreeList();
+                _this.dialogVisible1 = false;
+              }
+            }
+          })
+        } else {
+          return false
+        }
+      })
+    },
+    //删除档案模板
+    deleteTemplate() {
+      let o = this.selectedGridCheck;
+      if (!o || o === [] || o.length === 0 || o.length > 1) {
+        this.$message({
+          message: '请选择一条数据',
+          type: 'warning'
+        });
+      } else {
+        this.$confirm('此操作将永久删除选中数据, 是否继续?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+        }).then(() => {
+          const _this = this;
+          deleteFileAndLevelSame(this.selectedGridCheck[0].id).then(res => {
+            if (res.code == "200") {
+              _this.$message.success("删除成功")
+              _this.handleQuery();
+              _this.queryLeftTreeList();
+            }
+          })
+        }).catch(() => {
+        })
+      }
+    },
+
+    //查看映射字段规则
+    mappingSetMapper(item) {
+      this.activeName = 'second';
+      this.currentVal = item;
+      this.pageJumpForm = {idJump: item.daId, typeJump: item.points};
+      this.searchList(item);
+    },
+
+    //查询实体类字段
+    queryEntityList(val) {
+      queryEntityClass({type: val}).then(response => {
+        this.entityOptions = response.rows;
+        if (this.typeOptions) {
+          this.typeOptions.forEach(item => {
+            if (item.value === 'varchar') {
+              let field = this.entityOptions.filter(item1 =>
+                item1.value.indexOf('bh') !== -1 || item1.value.indexOf('field') !== -1
+              )
+              this.currentEntityOptions[item.value] = field
+            }
+            if (item.value === 'datetime') {
+              let time = this.entityOptions.filter(item1 =>
+                item1.value.indexOf('time') !== -1
+              )
+              this.currentEntityOptions[item.value] = time
+            }
+            if (item.value === 'int') {
+              let int1 = this.entityOptions.filter(item1 =>
+                item1.value.indexOf('int') !== -1
+              )
+              this.currentEntityOptions[item.value] = int1
+            }
+          })
+
+        }
+      })
+    },
+    //查询元数据字段
+    queryMetadataList() {
+      queryMetadataFields().then(response => {
+        this.metaDataOptions = response.rows;
+      })
+    },
+
+
+    //点击左侧树查询字段列表
+    searchList(val) {
+      const _this = this;
+      queryFieldsList({id: val.daId, type: val.points}).then(response => {
+        _this.metaTable = response.rows;
+        if (this.metaTable) {
+          _this.metaTable.forEach((item, index) => {
+            item.rowIndex = index + 1
+          })
+        }
+        _this.loading = false;
+      })
+    },
+    handleFieldChange(selection) {
+      this.fieldGridCheck = selection
+    },
+    //设置字段映射弹窗
+    handleSetMapper(item) {
+      this.setForm = {
+        daId: item.daId,
+        points: item.points,
+      }
+      this.selectedTableTitle = item.points == "0" ? "选择案卷元数据：" : "选择文件元数据：";
+      let type = this.setForm.points == "0" ? "S" : "B";
+      this.queryEntityList(type);
+      queryFieldsList({id: item.daId, type: item.points}).then(response => {
+        let arr = response.rows;
+        if (arr.length === 0 || !arr || arr == undefined) {
+          this.selectedTableData = [{
+            sourceName: '',
+            metadataId: '',
+            metadataName: '',
+            metadataType: '',
+            metadataTypeValue: ''
+          }];
+        } else {
+          this.selectedTableData = arr;
+
+          this.selectedTableData.map(item => {
+            this.typeOptions.forEach((item2) => {
+              if (item.metadataType === item2.value) {
+                item.metadataType = item2.label;
+                item.metadataTypeValue = item2.value;
+              }
+            });
+          })
+        }
+      })
+      this.dialogVisible2 = true;
+    },
+    //映射弹窗表格选中的值发生变化
+    handleChangeMeta(row) {
+      //元数据下拉框选择任意一个后，元数据类型、元数据长度同步变成对应的值
+      let item = this.metaDataOptions.find(item => item.id === row.metadataId);
+      /*判断是否可选择*/
+      if (item) {
+        row.metadataName = item.metadataName;
+        row.metadataType = item.metadataType;
+        let arr = this.currentEntityOptions[item.metadataType];
+        let currentIndex = 0;
+        arr.forEach((item1, index) => {
+          this.selectedTableData.forEach(item3 => {
+            if (item1.value === item3.sourceName) {
+              console.log(item1.value, item3.sourceName, index)
+              currentIndex = index + 1;
+            }
+          })
+        })
+        row.sourceName = arr[currentIndex].value;
+        this.typeOptions.forEach((item2) => {
+          if (row.metadataType === item2.value) {
+            row.metadataType = item2.label;
+            row.metadataTypeValue = item2.value;
+          }
+        });
+      } else {
+        row.metadataName = '';
+        row.metadataType = '';
+        row.metadataTypeValue = '';
+      }
+    },
+    //清空时，被清空的值可被再次选择，判断tableData与选择数组中metaDataOptions的
+    handleClear(row) {
+      row.metadataName = '';
+      row.metadataType = '';
+      row.sourceName = '';
+      row.id = '';
+      row.metadataTypeValue = ''
+    },
+    //设置映射弹窗内新增映射
+    addItem(arr ,index) {
+      let obj = {sourceName: '', metadataId: '', metadataName: '', metadataType: '', metadataTypeValue: ''};
+      // arr.push(obj);
+      arr.splice(index+1,0,obj);
+    },
+    // 移除映射
+    deleteItem(arr, index) {
+      arr.splice(index, 1);
+    },
+    //保存映射
+    handleSaveMapper() {
+      const _this = this;
+      this.setForm.mappingList = this.selectedTableData;
+      addMetadataFileLevel(this.setForm).then(response => {
+        if (response.code == "200") {
+          _this.$message({message: "设置映射字段成功", type: 'success'})
+          _this.dialogVisible2 = false;
+          _this.searchList(this.setForm);
+        }
+      })
+    },
+
+
+    //规则设置
+    editSortField1() {
+      this.dialogFormVisible1 = true;
+      this.$nextTick(() => {
+        this.pageJumpForm.setNumber = "show";
+        this.$refs.SettingFieldLists.init(this.pageJumpForm);
+      });
+    },
+    editSortField2() {
+      this.dialogFormVisible1 = true;
+      this.$nextTick(() => {
+        this.pageJumpForm.setNumber = "enter";
+        this.$refs.SettingFieldLists.init(this.pageJumpForm);
+      });
+    },
+    editSortField3() {
+      this.dialogFormVisible1 = true;
+      this.$nextTick(() => {
+        this.pageJumpForm.setNumber = "input";
+        this.$refs.SettingFieldLists.init(this.pageJumpForm);
+      });
+    },
+    editSortField4() {
+      this.dialogFormVisible1 = true;
+      this.$nextTick(() => {
+        this.pageJumpForm.setNumber = "edit";
+        this.$refs.SettingFieldLists.init(this.pageJumpForm);
+      });
+    },
+
+  }
+}
+</script>
+
+<style scoped lang="scss">
+.app-plate {
+  height: 100%;
+  width: 100%;
+}
+
+.modelTabA {
+  height: 100%;
+
+  ::v-deep .el-tabs__content {
+    height: calc(100% - 45px);
+    padding: 5px 5px 0 5px;
+
+    .tablePage {
+      height: calc(100% - 65px);
+    }
+  }
+
+  .el-tab-pane {
+    height: 100%;
+  }
+
+  .btn {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: auto;
+    //padding-right: 100px;
+    box-shadow: none;
+
+    .el-button {
+      margin: 0 10px 0 5px;
+    }
+  }
+}
+
+// 基本信息弹框
+.dialog-basic {
+  margin-left: 10px;
+
+  .form-basic {
+    margin-bottom: 15px;
+    line-height: 30px;
+    border-bottom: 1px solid #ccc;
+    margin-left: 15px;
+    margin-right: 15px;
+  }
+}
+
+//禁止输入框输入,字体颜色黑色
+.rt-input ::v-deep .el-input__inner {
+  color: #000000;
+}
+
+</style>

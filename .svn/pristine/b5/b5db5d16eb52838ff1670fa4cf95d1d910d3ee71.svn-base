@@ -1,0 +1,22 @@
+package com.fudian.szhjg.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.fudian.szhjg.pojo.TJuanji;
+import com.fudian.szhjg.pojo.TJuanjiExample;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+
+@Mapper
+public interface TJuanjiMapper extends BaseMapper<TJuanji> {
+    long countByExample(TJuanjiExample example);
+
+    int deleteByExample(TJuanjiExample example);
+
+    List<TJuanji> selectByExample(TJuanjiExample example);
+
+    int updateByExampleSelective(@Param("record") TJuanji record, @Param("example") TJuanjiExample example);
+
+    int updateByExample(@Param("record") TJuanji record, @Param("example") TJuanjiExample example);
+}

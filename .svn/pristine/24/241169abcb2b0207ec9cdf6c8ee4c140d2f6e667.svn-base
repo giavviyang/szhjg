@@ -1,0 +1,737 @@
+package com.fudian.szhjg.busiservice.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.fudian.common.core.domain.entity.SysDictData;
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.common.utils.SecurityUtils;
+import com.fudian.common.utils.uuid.IdUtils;
+import com.fudian.system.mapper.SysDictDataMapper;
+import com.fudian.szhjg.busiservice.MetadataMapperService;
+import com.fudian.szhjg.mapper.TMapperDalxMapper;
+import com.fudian.szhjg.mapper.TMapperMapper;
+import com.fudian.szhjg.mapper.TMapperOptionMapper;
+import com.fudian.szhjg.mapper.TMetadataMapper;
+import com.fudian.szhjg.pojo.*;
+import com.fudian.szhjg.pojo.vo.TmDalxVO;
+import com.fudian.szhjg.pojo.vo.TmaBerVO;
+import com.fudian.szhjg.pojo.vo.TmapperVO;
+import com.fudian.szhjg.pojo.vo.TmetadataVO;
+import com.fudian.szhjg.service.*;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.lang.reflect.Field;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+@Service
+public class MetadataMapperServiceImpl implements MetadataMapperService {
+
+    //元数据
+    @Autowired
+    private TMetadataMapper metadataMapper;
+    @Autowired
+    private TMetadataService metadataService;
+
+    //字段对应表
+    @Autowired
+    private TMapperMapper mapperMapper;
+    @Autowired
+    private TMapperService mapperService;
+
+    @Autowired
+    private TDalxglService tDalxglService;
+
+    @Autowired
+    private TMapperDalxMapper mapperDalxMapper;
+    @Autowired
+    private TMapperDalxService mapperDalxService;
+
+    @Autowired
+    private TMapperOptionMapper mapperOptionMapper;
+    @Autowired
+    private TMapperOptionService mapperOptionService;
+
+    @Autowired
+    private SysDictDataMapper sysDictDataMapper;
+
+
+    
+    //元数据和字段管理--查询元数据字段类型
+    @Override
+    public List<Object> queryMetadataType() {
+        List<Object> listMap = null;
+        try {
+            List<SysDictData> dataList = sysDictDataMapper.selectDictDataByType("md98");
+            listMap = new ArrayList<>();
+            for (SysDictData dict : dataList){
+                Map<String, Object> map = new HashMap<>();
+                map.put("label",dict.getDictLabel());
+                map.put("value",dict.getDictValue());
+                listMap.add(map);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ArithmeticException("查询字典表元数据类型失败");
+        }
+        return listMap;
+    }
+
+    //数据字段管理--查询正则表达式列表
+    @Override
+    public List<Object> queryRegularExpressionList() {
+        List<Object> objectList = null;
+        try {
+            List<SysDictData> dictList = sysDictDataMapper.selectDictDataByType("regex99");
+            objectList = new ArrayList<>();
+            for (SysDictData data : dictList){
+                Map<String, Object> map = new HashMap<>();
+                map.put("label",data.getDictLabel());
+                map.put("value",data.getDictValue());
+                objectList.add(map);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+            throw new ArithmeticException("查询字典表正则表达式信息失败");
+        }
+        return objectList;
+    }
+   
+
+ 
+    
+    //元数据管理--元数据重名查询
+    @Override
+    public String queryDoubleName(String type, String name, String id) {
+        String flag = "false";
+        LambdaQueryWrapper<TMetadata> metaWrapper = new LambdaQueryWrapper<>();
+        if ("add".equals(type)){
+            //新增
+            metaWrapper.eq(TMetadata::getMetadataChinese,name);
+            List<TMetadata> list = metadataService.list(metaWrapper);
+            if ( list.size()>0 ){
+                flag = "true";
+            }
+        }else {
+            //编辑
+            metaWrapper.eq(TMetadata::getMetadataChinese,name);
+            List<TMetadata> list = metadataService.list(metaWrapper);
+            if ( list.size()>0){
+                String metadataId = list.get(0).getId();
+                if (!metadataId.equals(id)){
+                    flag = "true";
+                }
+            }
+        }
+        return flag;
+    }
+
+
+
+    
+    //字段管理--查询左侧树信息
+    @Override
+    public CommonResult queryFilesTreeList() {
+        List<TmDalxVO>  voList = new ArrayList<>();
+        //查询档案类型父级
+        List<TDalxgl> daLxList = tDalxglService.list();
+        for (TDalxgl daLx : daLxList){
+            TmDalxVO tmDalxVO = new TmDalxVO();
+            tmDalxVO.setId(daLx.getId());
+            tmDalxVO.setArchiveName(daLx.getDamc());
+            //查询档案类型下的信息
+            LambdaQueryWrapper<TMapperDalx> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(TMapperDalx::getDaId,daLx.getId());
+            wrapper.orderByAsc(TMapperDalx::getPoints);
+            List<TMapperDalx> list = mapperDalxService.list(wrapper);
+            //循环转换案卷(0),文件(1)
+            for (TMapperDalx t : list){
+                if ("0".equals(t.getPoints())){
+                    t.setArchiveName("案卷级");
+                }else if ("1".equals(t.getPoints())){
+                    t.setArchiveName("文件级");
+                }
+            }
+            tmDalxVO.setDalxModelLv(list);
+            voList.add(tmDalxVO);
+        }
+        return CommonResult.success(voList);
+    }
+
+    //字段管理--查询档案类型名称
+    @Override
+    public CommonResult queryFilesType() {
+        List<Object> objectList = new ArrayList<>();
+        List<TDalxgl> dalxList = tDalxglService.list();
+        if ( dalxList.size()>0 ){
+            for (TDalxgl da : dalxList){
+                Map<String,Object> map = new HashMap<>();
+                map.put("label",da.getDamc());
+                map.put("value",da.getId());
+                objectList.add(map);
+            }
+        }
+        if ( objectList.size()>0 ){
+            return CommonResult.success(objectList);
+        }else {
+            return CommonResult.error(500, "未查询到档案类型相关信息!");
+        }
+    }
+
+    //字段管理--档案类型和级别重名查询和新增
+    @Override
+    public CommonResult queryFileAndLevelSame(String daId, String points) {
+        if (StringUtils.isNotBlank(daId) && StringUtils.isNotBlank(points)){
+            LambdaQueryWrapper<TMapperDalx> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(TMapperDalx::getDaId,daId).eq(TMapperDalx::getPoints,points);
+            List<TMapperDalx> list = mapperDalxService.list(wrapper);
+            if ( list.size()> 0 ){
+                return new CommonResult(200,"true","0");
+            }else {
+                TMapperDalx tMapper = new TMapperDalx();
+                tMapper.setId(IdUtils.simpleUUID());
+                tMapper.setDaId(daId);
+                tMapper.setPoints(points);
+                int i = mapperDalxMapper.insert(tMapper);
+                if ( i>0 ){
+                    return new CommonResult(200,"成功","0");
+                }else {
+                    return new CommonResult(200,"失败","1");
+                }
+            }
+        }
+        return new CommonResult(200,"失败","1");
+    }
+    //字段管理--删除档案类型和级别
+    @Override
+    public CommonResult deleteFileAndLevelSame(String id) {
+        LambdaQueryWrapper<TMapperDalx> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapperDalx::getId,id);
+        List<TMapperDalx> list = mapperDalxService.list(wrapper);
+        if ( list.size()>0 ){
+            LambdaQueryWrapper<TMapper> mapperWrapper = new LambdaQueryWrapper<>();
+            mapperWrapper.eq(TMapper::getDaId,list.get(0).getDaId()).eq(TMapper::getPoints,list.get(0).getPoints());
+            boolean b = mapperService.remove(mapperWrapper);
+            if (!b){
+                return new CommonResult(500,"删除失败");
+            }
+        }
+        boolean b = mapperDalxService.removeById(id);
+        if ( b ){
+            return new CommonResult(200,"删除成功");
+        }else {
+            return new CommonResult(500,"删除失败");
+        }
+    }
+
+    //字段管理--查询实体类字段
+    @Override
+    public CommonGridResult queryEntityClass(String type) {
+        List<Object> fieldNames = new ArrayList<>();
+        if ("S".equals(type)){
+            fieldNames = getFieldNames(TJuanji.class);
+        }else if ("B".equals(type)){
+            fieldNames = getFieldNames(TJianji.class);
+        }
+        return new CommonGridResult(0,fieldNames);
+    }
+    public List<Object> getFieldNames(Class clazz) {
+            List<Object> fieldNames = new ArrayList<>();
+            Field[] fields = clazz.getDeclaredFields();
+            for (Field field : fields) {
+                field.setAccessible(true);
+                String fieldName = field.getName();
+                if ( fieldName.equals("bh") || fieldName.contains("field") || fieldName.contains("time") || fieldName.contains("int")){
+                    Map<String,Object> map = new HashMap<>();
+                    //map.put("id", IdWorker.getIdStr());
+                    //map.put("label",fieldName);
+                    //map.put("value",fieldName);
+                    //fieldNames.add(map);
+                    if (fieldName.equals("bh")){
+                        map.put("label","编号(唯一)");
+                        map.put("value",fieldName);
+                        fieldNames.add(map);
+                    }
+                    if (fieldName.contains("field")){
+                        int index = fieldName.indexOf("field"); // 获取 'field'第一次出现的位置
+                        String result = fieldName.substring(index + 5); // 从 'field' 后面的第一个字符开始截取
+                        map.put("label","字符"+result);
+                        map.put("value",fieldName);
+                        fieldNames.add(map);
+                    }
+                    if (fieldName.contains("time")){
+                        int index = fieldName.indexOf("time"); // 获取 'time'第一次出现的位置
+                        String result = fieldName.substring(index + 4); // 从 'time' 后面的第一个字符开始截取
+                        map.put("label","时间"+result);
+                        map.put("value",fieldName);
+                        fieldNames.add(map);
+                    }
+                    if (fieldName.contains("int")){
+                        int index = fieldName.indexOf("int"); // 获取 'int_'第一次出现的位置
+                        String result = fieldName.substring(index + 3); // 从 'int_' 后面的第一个字符开始截取
+                        map.put("label","数字"+result);
+                        map.put("value",fieldName);
+                        fieldNames.add(map);
+                    }
+                }
+            }
+            return fieldNames;
+        }
+
+    //字段管理--查询元数据字段
+    @Override
+    public CommonGridResult queryMetadataFields() {
+        LambdaQueryWrapper<TMetadata> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByAsc(TMetadata::getCreateTime);
+        List<TMetadata> list = metadataService.list(wrapper);
+        return new CommonGridResult(0,list);
+    }
+
+
+    //字段管理--新增档案级别对应元数据
+    @Override
+    public CommonResult addMetadataFileLevel(TmetadataVO tmetadataVO) {
+        String name = SecurityUtils.getLoginUser().getUser().getNickName();
+        boolean d = deleteTemplate(tmetadataVO.getDaId(),tmetadataVO.getPoints());
+        if ( d ){
+            //创建存放元数据对应数据集合
+            List<TMapper> mapperList = new ArrayList<>();
+            tmetadataVO.getMappingList().forEach(m -> {
+                LambdaQueryWrapper<TMetadata> metadataWrapper = new LambdaQueryWrapper<>();
+                metadataWrapper.eq(TMetadata::getId,m.getMetadataId());
+                List<TMetadata> metadataList = metadataService.list(metadataWrapper);
+                if ( metadataList.size()>0 ){
+                    TMetadata t = metadataList.get(0);
+                    TMapper mapper = new TMapper();
+                    mapper.setSourceName(m.getSourceName());
+                    mapper.setMetadataId(m.getMetadataId());
+                    mapper.setMetadataName(t.getMetadataChinese());
+                    mapper.setMetadataType(t.getMetadataType());
+                    mapper.setIsNotNull(t.getIsNotNull());
+                    mapperList.add(mapper);
+                }
+            });
+
+            //创建一个AtomicInteger对象，用来存储排序号，初始化为1
+            AtomicInteger index = new AtomicInteger(1);
+            mapperList.forEach(e ->{
+                e.setId(IdUtils.simpleUUID());
+                e.setDaId(tmetadataVO.getDaId());
+                e.setPoints(tmetadataVO.getPoints());
+                e.setCreateBy(name);
+                e.setCreateTime(new Date());
+                e.setSort(index.getAndIncrement());
+                e.setDisplaySet("0");
+                e.setEnterSet("0");
+                e.setDisplaySet("0");
+                e.setBerSet("0");
+            });
+
+            boolean b = mapperService.saveBatch(mapperList);
+            if ( b ){
+                return new CommonResult(200,"设置映射字段成功");
+            }else {
+                return new CommonResult(500,"设置映射字段失败");
+            }
+        }else {
+            return new CommonResult(500,"设置映射字段失败");
+        }
+    }
+    //删除之前的数据
+    private boolean deleteTemplate(String daId, String points) {
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,points);
+        return mapperService.remove(wrapper);
+    }
+
+
+    //字段管理--规则设置保存展示字段
+    @Override
+    public CommonResult saveOrDisplayField(List<TmapperVO> list) {
+        if (list.size()>0){
+            //获取集合中的id进行查询指定数据
+            List<TMapper> mapperList = AppointMapperList(list);
+            //查询之前数据
+            List<TMapper> listMapper = BeforeList(mapperList,"C");
+            //修改成原始状态
+            if (listMapper.size()>0){
+                listMapper.forEach(e ->{
+                    e.setDisplaySet("0");
+                });
+                boolean b = mapperService.updateBatchById(listMapper);
+                if (!b){
+                    return CommonResult.error("字段设置失败");
+                }
+            }
+            //循环修改查询的字段
+            for (TmapperVO t1 : list){
+                for (TMapper t2 : mapperList){
+                    if (t1.getId().equals(t2.getId())) {
+                        t2.setDisplaySet("1");
+                        t2.setDisplaySort(t1.getFieldOrder());
+                        t2.setDisplayWidth(t1.getDisplayWidth());
+                    }
+                }
+            }
+            boolean b1 = mapperService.updateBatchById(mapperList);
+            if ( b1 ){
+                return new CommonResult(200,"字段设置成功");
+            }else {
+                return new CommonResult(500,"字段设置失败");
+            }
+        }
+        return new CommonResult(200,"字段设置成功");
+    }
+    //字段管理--规则设置保存任务录入字段
+    @Override
+    public CommonResult saveOrInputField(List<TmapperVO> list) {
+        if (list.size()>0){
+            //根据集合中的id进行查询指定数据
+            List<TMapper> mapperList = AppointMapperList(list);
+            //查询之前数据
+            List<TMapper> listMapper = BeforeList(mapperList,"L");
+            //修改成原始状态
+            if ( listMapper.size()>0 ){
+                listMapper.forEach(e ->{
+                    e.setEnterSet("0");
+                });
+                boolean b = mapperService.updateBatchById(listMapper);
+                if (!b){
+                    return CommonResult.error("字段设置失败");
+                }
+            }
+            //循环修改查询的字段
+            for (TmapperVO o1 : list){
+                for (TMapper o2: mapperList){
+                    if (o1.getId().equals(o2.getId())){
+                        o2.setEnterSet("1");
+                        o2.setEnterSort(o1.getFieldOrder());
+                        o2.setMetadataMode(o1.getMetadataMode());
+                        o2.setMetadataLength(o1.getMetadataLength());
+                        o2.setMetadataRegular(o1.getMetadataRegular());
+                    }
+                }
+            }
+            boolean o = mapperService.updateBatchById(mapperList);
+            if ( o ){
+                return new CommonResult(200,"字段设置成功");
+            }else{
+                return new CommonResult(500,"字段设置失败");
+            }
+        }
+        return new CommonResult(200,"字段设置成功");
+    }
+
+    //字段管理--规则设置保存著录录入字段
+    @Override
+    public CommonResult descOrInputField(List<TmapperVO> list) {
+        if (list.size()>0){
+            //根据集合中的id进行查询指定数据
+            List<TMapper> mapperList = AppointMapperList(list);
+            //查询之前数据
+            List<TMapper> listMapper = BeforeList(mapperList,"M");
+            if ( listMapper.size()>0 ){
+                listMapper.forEach(e ->{ e.setDescriptionSet("0"); });
+                boolean b = mapperService.updateBatchById(listMapper);
+                if (!b){
+                    return CommonResult.error("字段设置失败");
+                }
+            }
+            //循环修改查询的字段
+            for (TmapperVO o1 : list){
+                for (TMapper o2: mapperList){
+                    if (o1.getId().equals(o2.getId())){
+                        o2.setDescriptionSet("1");
+                        o2.setDescriptionSort(o1.getFieldOrder());
+                        o2.setMetadataMode(o1.getMetadataMode());
+                        o2.setMetadataLength(o1.getMetadataLength());
+                        o2.setMetadataRegular(o1.getMetadataRegular());
+                    }
+                }
+            }
+            boolean o = mapperService.updateBatchById(mapperList);
+            if ( o ){
+                return new CommonResult(200,"字段设置成功");
+            }else{
+                return new CommonResult(500,"字段设置失败");
+            }
+        }
+        return new CommonResult(200,"字段设置成功");
+    }
+
+    //规则设置查询指定数据
+    private List<TMapper> AppointMapperList(List<TmapperVO> list) {
+        //获取集合中的id进行查询指定数据
+        List<String> idList = list.stream().map(TmapperVO::getId).collect(Collectors.toList());
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(TMapper::getId,idList);
+        return  mapperService.list(wrapper);
+    }
+    //规则设置查询展示/录入/著录数据
+    private List<TMapper> BeforeList(List<TMapper> mapperList, String t) {
+        TMapper mapper = mapperList.get(0);
+        LambdaQueryWrapper<TMapper> mapperWrapper = new LambdaQueryWrapper<>();
+        mapperWrapper.eq(TMapper::getDaId,mapper.getDaId()).eq(TMapper::getPoints,mapper.getPoints());
+        if ("C".equals(t)){
+            mapperWrapper.eq(TMapper::getDisplaySet,"1");
+        }else if ("L".equals(t)){
+            mapperWrapper.eq(TMapper::getEnterSet,"1");
+        }else if ("M".equals(t)){
+            mapperWrapper.eq(TMapper::getDescriptionSet,"1");
+        }
+        return mapperService.list(mapperWrapper);
+    }
+
+
+    //字段管理--规则设置字段无值设置
+    @Override
+    public CommonResult queryNoFixField(String daId, String points, String king) {
+        List<TMapper> list = new ArrayList<>();
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,points);
+        //判断是 展示(ex) / 录入(en) / 著录(zl)
+        if ("ex".equals(king)){
+            wrapper.eq(TMapper::getDisplaySet,"1");
+            list = mapperService.list(wrapper);
+            list.forEach(e ->{ e.setDisplaySet("0");});
+        }else if ("en".equals(king)){
+            wrapper.eq(TMapper::getEnterSet,"1");
+            list = mapperService.list(wrapper);
+            list.forEach(e ->{ e.setEnterSet("0");});
+        }else if ("zl".equals(king)){
+            wrapper.eq(TMapper::getDescriptionSet,"1");
+            list = mapperService.list(wrapper);
+            list.forEach(e ->{ e.setDescriptionSet("0");});
+        }
+        if (list.size()>0){
+            boolean b = mapperService.updateBatchById(list);
+            if ( b ){
+                return new CommonResult(200,"字段设置成功");
+            }else {
+                return new CommonResult(500,"字段设置失败");
+            }
+        }else {
+            return new CommonResult(200,"字段设置成功");
+        }
+    }
+
+    //字段管理--查询编号字段是否存在
+    @Override
+    public String queryNumberOne(String daId, String points) {
+        LambdaQueryWrapper<TMapper> mapperWrapper = new LambdaQueryWrapper<>();
+        //mapperWrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,points).eq(TMapper::getBerSet,"1");
+        mapperWrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,points).eq(TMapper::getSourceName,"bh");
+        List<TMapper> list = mapperService.list(mapperWrapper);
+        TMapper tMapper = new TMapper();
+        if ( list.size()>0 ){
+            tMapper = list.get(0);
+        }
+        return tMapper.getId();
+    }
+
+    //字段管理--查询编号组成字段
+    @Override
+    public CommonGridResult queryNumberFieldList(String daId, String points, String nameId) {
+        if (StringUtils.isNotBlank(nameId)){
+            LambdaQueryWrapper<TMapper> mapperWrapper = new LambdaQueryWrapper<>();
+            mapperWrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,points).eq(TMapper::getEnterSet,"1");
+            mapperWrapper.ne(TMapper::getId, nameId);
+            mapperWrapper.orderByAsc(TMapper::getEnterSort);
+            List<TMapper> list = mapperService.list(mapperWrapper);
+            return new CommonGridResult(list.size(),list);
+        }else {
+            LambdaQueryWrapper<TMapper> mapperWrapper = new LambdaQueryWrapper<>();
+            mapperWrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,points).eq(TMapper::getEnterSet,"1");
+            mapperWrapper.orderByAsc(TMapper::getEnterSort);
+            List<TMapper> list = mapperService.list(mapperWrapper);
+            return new CommonGridResult(list.size(),list);
+        }
+    }
+
+    //字段管理--查询编号组成字段是否存在
+    @Override
+    public CommonGridResult queryExampleFieldExists(String daId, String points) {
+        LambdaQueryWrapper<TMapper> mapperWrapper = new LambdaQueryWrapper<>();
+        mapperWrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,points).eq(TMapper::getBerSet,"2");
+        mapperWrapper.orderByAsc(TMapper::getBerSort);
+        List<TMapper> list = mapperService.list(mapperWrapper);
+        return new CommonGridResult(list.size(),list);
+    }
+
+    //字段管理--新增编号数据
+    @Override
+    public CommonResult addNumberingField(TmetadataVO tmetadataVO) {
+        LambdaQueryWrapper<TMapper> mapperWrapper = new LambdaQueryWrapper<>();
+        mapperWrapper.eq(TMapper::getDaId,tmetadataVO.getDaId()).eq(TMapper::getPoints,tmetadataVO.getPoints());
+        mapperWrapper.ne(TMapper::getBerSet,"0");
+        List<TMapper> listMapper = mapperService.list(mapperWrapper);
+        if ( listMapper.size()>0 ){
+            listMapper.forEach(e ->{
+                e.setBerSet("0");
+                e.setBerSort(null);
+            });
+            boolean b = mapperService.updateBatchById(listMapper);
+            if (!b){
+                return CommonResult.error("编号设置失败");
+            }
+        }
+        //获取全部数据
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,tmetadataVO.getDaId()).eq(TMapper::getPoints,tmetadataVO.getPoints());
+        List<TMapper> list = mapperService.list(wrapper);
+        List<TMapper> arrayList = new ArrayList<>();
+        if ( list.size()>0 ){
+            //获取编号主字段
+            for (TMapper element : list) {
+                if (element.getId().equals(tmetadataVO.getNumberName())) {
+                    TMapper mapper = element;
+                    mapper.setBerSet("1");
+                    arrayList.add(mapper);
+                    break;
+                }
+            }
+            //获取编号组成字段
+            for (TmaBerVO tmaBer : tmetadataVO.getNumberList()){
+                for (TMapper element : list ){
+                    if (tmaBer.getId().equals(element.getId())){
+                        TMapper mapper = element;
+                        mapper.setBerSet("2");
+                        mapper.setBerSort(tmaBer.getFieldOrder());
+                        arrayList.add(mapper);
+                        break;
+                    }
+                }
+            }
+            if (arrayList.size()>0){
+                boolean o = mapperService.updateBatchById(arrayList);
+                if ( o ){
+                    return new CommonResult(200,"编号设置成功");
+                }else{
+                    return new CommonResult(500,"编号设置失败");
+                }
+            }else {
+                return new CommonResult(500,"编号设置失败");
+            }
+        }else {
+            return new CommonResult(500,"编号设置失败");
+        }
+    }
+
+
+
+
+    //字段下拉框管理--查询全部元数据名称
+    @Override
+    public List<Object> queryChooseFields1() {
+        List<Object> list = null;
+        try {
+            LambdaQueryWrapper<TMetadata> metadataWrapper = new LambdaQueryWrapper<>();
+            metadataWrapper.orderByAsc(TMetadata::getCreateTime);
+            List<TMetadata> listMeta = metadataService.list(metadataWrapper);
+            list = new ArrayList<>();
+            for (TMetadata metadata : listMeta){
+                Map<String, String> map = new HashMap<>();
+                map.put("label", metadata.getMetadataChinese());
+                map.put("value", metadata.getMetadataChinese());
+                list.add(map);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ArithmeticException("查询元数据名称失败");
+        }
+        return list;
+    }
+
+    //字段下拉框管理--查询指定元数据名称
+    @Override
+    public List<Object> queryChooseFields2() {
+        List<Object> list = null;
+        try {
+            LambdaQueryWrapper<TMapperOption> optionWrapper = new LambdaQueryWrapper<>();
+            optionWrapper.eq(TMapperOption::getType,"M");
+            List<TMapperOption> listOption = mapperOptionService.list(optionWrapper);
+            list = new ArrayList<>();
+            for (TMapperOption option : listOption){
+                Map<String, String> map = new HashMap<>();
+                map.put("label", option.getMetadataName());
+                map.put("value", option.getMetadataName());
+                list.add(map);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ArithmeticException("查询元数据名称失败");
+        }
+        return list;
+    }
+
+    //字段下拉框管理--保存添加下拉框数据
+    @Override
+    public CommonResult addChooseFields(TMapperOption tMapperOption) {
+        //获取用户名
+        String name = SecurityUtils.getLoginUser().getUser().getNickName();
+        //查询数据
+        LambdaQueryWrapper<TMapperOption> optionWrapper = new LambdaQueryWrapper<>();
+        optionWrapper.eq(TMapperOption::getMetadataName,tMapperOption.getMetadataName());
+        List<TMapperOption> listOption = mapperOptionService.list(optionWrapper);
+        //判断当前字段名称下是否存在数据
+        if ( listOption.size()>0 ){
+            boolean b = mapperOptionService.remove(optionWrapper);
+            if ( !b ){
+                return CommonResult.error("数据保存失败");
+            }
+        }
+        //创建存放数据的集合
+        List<TMapperOption> mapperList = new ArrayList<>();
+        List<TMapperOption> optionList = tMapperOption.getMappingOptionList();
+        if (optionList.size()>0){
+            //添加父节点
+            TMapperOption option1 = new TMapperOption();
+            Date date = new Date();
+            option1.setId(IdUtils.simpleUUID());
+            option1.setCreateBy(name);
+            option1.setCreateTime(date);
+            option1.setMetadataName(tMapperOption.getMetadataName());
+            option1.setType("M");
+            mapperList.add(option1);
+            //添加子节点
+            for (TMapperOption option : optionList){
+                TMapperOption option2 = new TMapperOption();
+                option2.setId(IdUtils.simpleUUID());
+                option2.setCreateBy(name);
+                option2.setCreateTime(date);
+                option2.setMetadataName(tMapperOption.getMetadataName());
+                option2.setType("C");
+                option2.setDictSort(option.getDictSort());
+                option2.setDictLabel(option.getDictLabel());
+                //option2.setDictValue(option.getDictValue());
+                //option2.setRemark(option.getRemark());
+                mapperList.add(option2);
+            }
+
+            boolean b = mapperOptionService.saveBatch(mapperList);
+            if ( b ){
+                return CommonResult.success("数据保存成功");
+            }else {
+                return CommonResult.success("数据保存失败");
+            }
+        }
+        return CommonResult.success("数据保存成功");
+    }
+
+    //字段下拉框管理--批量删除数据
+    @Override
+    public CommonResult deleteChooseFields(String[] ids) {
+        List<String> strings = Arrays.asList(ids);
+        boolean b = mapperOptionService.removeByIds(strings);
+        if ( b ){
+            return CommonResult.success("删除数据成功");
+        }else {
+            return CommonResult.error("删除数据失败");
+        }
+    }
+
+}

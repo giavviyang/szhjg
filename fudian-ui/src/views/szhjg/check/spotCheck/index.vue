@@ -1,0 +1,746 @@
+<template>
+  <div class="dashboard-container">
+    <div class="chart-wrapper">
+      <el-form :model="queryForm" ref="queryForm" size="small" :inline="true" v-hasPermi="['szhjg:check:spotCheck:search']"
+               style="margin-top:5px;margin-bottom:0;">
+        <el-form-item label="选择批次" prop="pcId">
+          <el-cascader v-model="queryForm.pcId" :options="projectOptions" :props="projectProps" clearable size="mini"
+                       filterable :show-all-levels="false" @change="handleChange"></el-cascader>
+        </el-form-item>
+        <el-form-item label="抽检人" prop="cjrNx">
+          <el-input v-model="queryForm.cjrNx" clearable style="width: 200px" class="rt-input" size="mini"
+                    @keyup.enter.native="batchSearch"/>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="el-icon-search" size="mini" @click="batchSearch">搜索</el-button>
+        </el-form-item>
+      </el-form>
+      <el-row :gutter="10" class="mb8">
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="el-icon-document-checked" v-hasPermi="['szhjg:check:spotCheck:view']"
+                     size="mini" @click="viewFile">查看文件</el-button>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="el-icon-check" size="mini" v-hasPermi="['szhjg:check:spotCheck:complete']"
+                     @click="oneClickCompletion">一键完成
+          </el-button>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="el-icon-check" size="mini" v-hasPermi="['szhjg:check:spotCheck:history']"
+                     @click="toHistory">查看抽检历史</el-button>
+        </el-col>
+      </el-row>
+      <!--任务表单信息-->
+      <div v-if="checkColumns.length<=1" class="taskColumnsFalse">暂无数据</div>
+      <el-table v-else row-key="id" :data="checkList" border width="100%" height="calc(100% - 120px)" ref="checkTable"
+                slot="table" @selection-change="checkSelectionChange" @row-click="checkRowClick" @select="checksSelect"
+                :row-style="checkClass">
+        <el-table-column type="selection" width="40"></el-table-column>
+        <el-table-column align="center" :index="checkGetIndex" type="index" label="序号" width="55"></el-table-column>
+        <el-table-column align="center" v-for="(item,index) in checkColumns" :key="index" :label="item.label"
+                         :prop="item.prop" :v-if="checkColumns[index].isCol" :min-width="item.width"
+                         show-overflow-tooltip :formatter="item.formatter">
+        </el-table-column>
+        <el-table-column align="center" label="操作" width="120">
+          <template slot-scope="scope">
+            <el-button type="text" size="mini" v-hasPermi="['szhjg:check:spotCheck:description']"
+                       @click="descriptionFile(scope.row)">完成抽检</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="page" style="margin-top: 5px;">
+        <el-pagination :page-sizes="[20, 30, 50, 100]" :page-size="pageSize" :current-page="pageNum" :total="total"
+                       layout="total, sizes, prev, pager, next, jumper" @size-change="pageSizeS" :pager-count="5"
+                       @current-change="pageCurrent"/>
+      </div>
+    </div>
+
+    <!--文件组件-->
+    <el-dialog title="文件抽检"  width="90%" :visible.sync="dialogFormVisible1" resize remember :append-to-body="true"
+               :close-on-click-modal="false" :close-on-press-escape="false" :destroy-on-close="true"
+               :before-close="beforeClose" class="dialog-style dialog-basic">
+      <el-col :span="12" style="height: calc(100vh - 140px) ">
+        <div style="height:100%;padding:0 10px 0 0;">
+          <div class="form-basic">文件信息 :</div>
+          <el-table border v-if="jianFrameColumns.length<=0" height="calc(100% - 30px)"></el-table>
+          <el-table v-else row-key="id" :data="jianFrameList" border height="calc(100% - 30px)" ref="jianTable"
+                    @row-click="jianRowClick" @selection-change="jianSelectionChange" @select="jianSelect"
+                    :row-style="jianClass" >
+            <el-table-column type="selection" width="40" ></el-table-column>
+            <el-table-column align="center"  type="index" label="序号" width="50" :index="jianGetIndex"></el-table-column>
+            <el-table-column align="center" v-for="(item,index) in jianFrameColumns" :key="index" :label="item.label"
+                             :prop="item.prop" :min-width="item.width" show-overflow-tooltip :formatter="item.formatter"/>
+          </el-table>
+        </div>
+      </el-col>
+      <el-col :span="12" v-if="showImg" style="height: calc(100vh - 140px) ">
+        <div class="form-imgs">
+          <ImgViewr v-if="txVisible"
+                    :visible="txVisible"
+                    :lockScroll="false"
+                    :urls="urls"
+                    :initialIndex="index"
+                    :on-show="onShow"
+                    :on-switch="changeHandle"
+                    :closeOnClickMask="false"/>
+          <div class="imgtit" v-if="urls.length > 0">
+            当前第{{ index + 1 }}张,共有{{ urls.length }}张图片
+          </div>
+          <div class="imgtit" v-else>暂无图片</div>
+        </div>
+      </el-col>
+    </el-dialog>
+
+    <!--    查看抽检历史-->
+    <History ref="history" @HistoryCloseData="HistoryCloseData"/>
+
+  </div>
+</template>
+
+<script>
+import {Message} from "element-ui";
+import { completeProjectBatch } from "@/api/szhjg/check/spotCheckTask";
+import {queryRandomCase, queryCaseInspection, querySamplingPeople,} from "@/api/szhjg/check/spotCheck";
+import { completeSpotCheck, completeClickList } from "@/api/szhjg/check/spotCheck";
+import { spotCheckDynamicList } from "@/api/szhjg/dynamicCommon";
+import ImgViewr, {showImages} from "vue-img-viewr";
+import 'vue-img-viewr/styles/index.css';
+import { selectPictureImage } from "@/api/szhjg/szhjgCommon";
+import History from "../spotCheck/History/index";
+
+const params = {
+  pageNum: 1,
+  pageSize: 20
+}
+export default {
+  name: "index",
+  components: {ImgViewr, History},
+  data() {
+    return {
+      //弹窗
+      dialogFormVisible1: false,   //质检文件/图片弹窗
+      //搜索
+      queryForm: {
+        pcId: [],
+        cjrNx: '',
+      },
+      projectOptions: [],
+      projectProps: {label: 'projectName', value: 'benId', children: 'pcName'},
+      //存放批次id
+      batchId: '',
+
+
+      /**********************    案卷信息              *****************************************************************/
+      // 遮罩层
+      loading: true,
+      total: 0,
+      pageNum: 1,
+      pageSize: 20,
+
+      checkGridCheck: [],   //复选框选中
+      checkList: [],        //任务列表
+      checkColumns: [],     //任务表头
+
+      //抽检人的名称集合
+      optionsSamplingPeople: [],
+
+
+      /**********************    文件(案卷)和图片信息              *****************************************************/
+      /****     文件(案卷)字段    ****/
+      totalJian: 0,
+      pageNumJian: 1,
+      pageSizeJian: 20,
+      jianGridCheck: [],      //文件复选框
+      jianFrameList: [],      //文件列表
+      jianFrameColumns: [],   //文件表头
+
+      /****     图片(图像)字段    ****/
+      FileUrl: process.env.VUE_APP_BASE_API + "/szhjgCommonController/ioReadImg2?url=",
+      urls: [],
+      index: 0,
+      showImg: false,
+      txVisible: false,
+
+    }
+  },
+
+  mounted() {},
+  created() {
+    this.queryOptions();
+    this.samplingPeopleList();
+  },
+
+  watch:{
+    projectOptions(val){
+      this.queryForm.pcId = [val[0].benId,val[0].pcName[0].benId];
+      if(val[0].pcName[0].pcName.length > 0){
+        this.queryForm.pcId = [val[0].benId,val[0].pcName[0].benId,val[0].pcName[0].pcName[0].benId]
+      }
+      this.oneTableHeaders(this.queryForm.pcId[2]);
+      params.pcId = this.queryForm.pcId[2];
+      this.queryList(params);
+      this.twoTableHeaders(this.queryForm.pcId[2]);
+      this.batchId = this.queryForm.pcId[2];
+    }
+  },
+
+  methods: {
+    //查询项目批次
+    queryOptions() {
+      completeProjectBatch().then((res) => {
+        this.projectOptions = res.data;
+      })
+    },
+    //查询抽检人
+    samplingPeopleList() {
+      querySamplingPeople().then(res => {
+        this.optionsSamplingPeople = res.map((item) => {
+          return item;
+        });
+      })
+    },
+    SamplingOptions(row, column, cellValue) {
+      let result;
+      cellValue = row.id;
+      const arr = this.optionsSamplingPeople;
+      for (var i in arr) {
+        if (cellValue == arr[i].value) {
+          result = arr[i].label;
+        }
+      }
+      return result;
+    },
+
+    //切换项目批次之后进行查询
+    handleChange(value) {
+      this.checkColumns = [];
+      this.checkList = [];
+      this.oneTableHeaders(value[2]);
+      params.pcId = value[2];
+      this.queryList(params);
+      this.twoTableHeaders(value[2]);
+      this.batchId = value[2];
+    },
+    //查询动态表头展示字段（案卷【任务/著录字段】）
+    oneTableHeaders(dynamic){
+      spotCheckDynamicList({headBatch: dynamic, headPoints: 0}).then((res) => {
+        this.checkColumns = res.data;
+        // 添加两个默认的展示字段
+        this.checkColumns.unshift({label: '抽检人', prop: 'cjr', width: '80', formatter: this.SamplingOptions});
+      })
+    },
+    //查询动态表头展示字段（文件【任务/著录字段】）
+    twoTableHeaders(dynamic){
+      spotCheckDynamicList({headBatch: dynamic, headPoints: 1}).then((res) => {
+        this.jianFrameColumns = res.data;
+      })
+    },
+
+
+    /***************************     页面表格展示数据             ******************************************************/
+    //上部搜索
+    batchSearch() {
+      this.pageNum = 1;
+      let params = {
+        pageNum: 1,
+        pageSize: 20,
+        pcId: this.queryForm.pcId[2],
+        cjrNx: this.queryForm.cjrNx,
+      }
+      this.queryList(params)
+    },
+    //查询数据展示页面
+    queryList(params) {
+      const _this = this;
+      queryRandomCase(params, {emulateJSON: true}).then(function (response) {
+        _this.checkList = response.rows;
+        _this.total = response.total;
+        _this.loading = false;
+      })
+    },
+    //分页
+    pageCurrent(val) {
+      this.pageNum = val
+      params.pageNum = val
+      params.pageSize = this.pageSize;
+      params.pcId = this.queryForm.pcId[2];
+      params.cjrNx = this.queryForm.cjrNx;
+      this.queryList(params)
+    },
+    pageSizeS(val) {
+      this.pageSize = val
+      params.pageSize = val;
+      params.pageNum = this.pageNum;
+      params.pcId = this.queryForm.pcId[2];
+      params.cjrNx = this.queryForm.cjrNx;
+      this.queryList(params)
+    },
+
+    // 复选框事件
+    checkSelectionChange(val) {
+      this.checkGridCheck = val;
+    },
+    // 行点击事件
+    checkRowClick(row, column, event) {
+      this.$refs.checkTable.clearSelection();
+      if (this.checkGridCheck.length === 0) {
+        this.$refs.checkTable.toggleRowSelection(row)
+        return;
+      }
+      this.$refs.checkTable.toggleRowSelection(row)
+    },
+    async checksSelect(selection, row) {
+      //执行完清空操作在进行下面的勾选
+      await this.$refs.checkTable.clearSelection();
+      if (selection.length === 0) return;
+      this.$refs.checkTable.toggleRowSelection(row, true);
+    },
+    checkClass({row, rowIndex}) {
+      if (this.checkGridCheck.includes(row)) {
+        return {
+          "background": "#b9deff !important", "color": "blue",
+        }
+      } else {
+        return {
+          "——tablebackground": "#F5F7FA",
+        }
+      }
+    },
+    //翻页后序号连贯
+    checkGetIndex($index) {
+      return (this.pageNum - 1) * this.pageSize + $index + 1;
+    },
+
+
+    /***************************     质检文件信息 和 图片(图像)数据             *****************************************/
+    //关闭页面弹窗
+    beforeClose(){
+      this.dialogFormVisible1 = false;
+      this.urls = [];
+      this.index = 0;
+    },
+
+    /****      质检文件信息      ****/
+    //查看文件/图片
+    viewFile() {
+      if (this.checkGridCheck.length == 1) {
+        this.dialogFormVisible1 = true;
+        this.queryCaseList(this.checkGridCheck[0].id);
+      } else {
+        Message.warning("请选择一条数据!");
+      }
+    },
+    queryCaseList(val){
+      const _this = this
+      let params = {
+        pageNum: 1,
+        pageSize: 20,
+        ajId:val,
+      }
+      queryCaseInspection(params, {emulateJSON: true}).then(function (response) {
+        _this.jianFrameList = response.rows;
+        _this.totalJian = response.total;
+        _this.loading = false;
+      })
+    },
+    //复选框事件
+    jianSelectionChange(val) {
+      this.jianGridCheck = val;
+      if (this.jianGridCheck.length == 1){
+        this.pictureImageList(this.jianGridCheck[0]);
+      }
+    },
+    //行点击事件
+    jianRowClick(row, column) {
+      this.showImg = true;
+      this.$refs.jianTable.clearSelection();
+      if (this.jianGridCheck.length === 0) {
+        this.$refs.jianTable.toggleRowSelection(row)
+        return;
+      }
+      this.$refs.jianTable.toggleRowSelection(row)
+    },
+    async jianSelect(selection, row) {
+      // 执行完清空操作在进行下面的勾选
+      await this.$refs.jianTable.clearSelection();
+      if (selection.length === 0) return;
+      this.$refs.jianTable.toggleRowSelection(row, true);
+    },
+    jianClass( { row,rowIndex }) {
+      if (this.jianGridCheck.includes(row)){
+        return {"background":"#b9deff !important", "color": "blue",}
+      } else {
+        return {"——tablebackground" : "#F5F7FA",}
+      }
+    },
+    //翻页后序号连贯
+    jianGetIndex($index) {
+      return (this.pageNumJian - 1) * this.pageSizeJian + $index + 1;
+    },
+
+    /****      图片(图像)方法      ****/
+    imgchange(e) {
+      this.index = e;
+    },
+    stopMounse() {
+      return false;
+    },
+    // 通过组件方式
+    showImagesByComponent(index) {
+      this.txVisible = true;
+      this.index = index|0;
+    },
+    onShow(isShow) {
+      //console.log(isShow);
+    },
+    showImagesByJs(index) {
+      // 通过js方式显示
+      showImages({
+        urls: this.urls,
+        index,
+        onShow: this.onShow,
+      })
+    },
+    changeHandle(i) {
+      this.index = i
+      //console.log(`current image index: ${i}`)
+    },
+    pictureImageList(row){
+      const _this = this
+      selectPictureImage({jh:row.jh,ajId:row.ajId}).then((res)=>{
+        if (res.data != null && res.data != undefined) {
+          if (res.data.imgs.length > 0) {
+            _this.urls = res.data.imgs.map((item, index) => {
+              return _this.FileUrl + encodeURIComponent(item);
+            });
+          }else {
+            _this.urls = []
+          }
+          _this.index = 0;
+          _this.showImagesByComponent();
+        }
+      })
+    },
+
+
+    /***************************        抽检完成提交              ******************************************************/
+    //完成抽检
+    descriptionFile(val) {
+      const _this = this;
+      let id = val.id;
+      completeSpotCheck({id: id}).then((res) => {
+        if (res.code == "200") {
+          _this.batchSearch();
+          _this.$message({message: "当前案卷抽检完成", type: 'success'})
+        } else {
+          this.$message({message: "系统异常，请联系管理员", type: 'error'});
+        }
+      })
+    },
+    //一键完成
+    oneClickCompletion() {
+      const _this = this;
+      if (this.checkGridCheck.length == 1) {
+        completeSpotCheck({id: this.checkGridCheck[0].id}).then((res) => {
+          if (res.code == "200") {
+            _this.batchSearch();
+            _this.$message({message: "当前案卷抽检完成", type: 'success'})
+          } else {
+            this.$message({message: "系统异常，请联系管理员", type: 'error'});
+          }
+        })
+      } else {
+        this.$confirm('您没有选择记录,是否一键完成所有?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          if (this.batchId == '' || this.batchId == null || this.batchId == undefined) {
+            this.$message({message: '请选择批次!', type: 'error'});
+            return false;
+          }
+          completeClickList({pcId:this.batchId}).then((res) => {
+            if (res.code == "200") {
+              _this.batchSearch();
+              _this.$message({message: "案卷抽检一键完成成功", type: 'success'})
+            } else {
+              this.$message({message: "系统异常，请联系管理员", type: 'error'});
+            }
+          })
+        }).catch(() => {
+        });
+      }
+    },
+
+
+    /***************************        抽检历史查询              ******************************************************/
+    //查看抽检历史
+    toHistory() {
+      this.$nextTick(() => {
+        this.$refs.history.init();
+      });
+    },
+    //关闭页面弹窗重新刷新
+    HistoryCloseData(val) {
+      this.batchSearch();
+    },
+
+
+
+  },
+}
+</script>
+
+<style scoped lang="scss">
+.dashboard-container {
+  padding: 10px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+
+  .github-corner {
+    position: absolute;
+    top: 0;
+    border: 0;
+    right: 0;
+  }
+
+  .chart-wrapper {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.el-form-item--small.el-form-item {
+  margin-bottom: 5px;
+}
+
+::v-deep .el-cascader .el-input .el-input__inner {
+  width: 200px;
+  height: 28px;
+  line-height: 28px;
+}
+
+::v-deep .el-table {
+  border-right:1px solid #dfe6ec;
+  color: #515a6e;
+  & > .el-table__header-wrapper {
+    & > table {
+      tr:first-of-type {
+        th {
+          background: rgba(204, 204, 204, 0.18);
+          color: #515a6e;
+          font-size: 12px;
+          //text-align: center;
+          height: 34px !important;
+          padding: 5px 0 !important;
+        }
+      }
+      tr:nth-of-type(2) {
+        th {
+          background: #fff;
+          //background: rgba(204, 204, 204, 0.05);
+          color: #515a6e;
+          font-size: 12px;
+          text-align: center;
+          padding: 0 !important;
+          height: 34px;
+          .el-input__inner {
+            border: none;
+            padding: 0;
+            height: 20px;
+          }
+        }
+      }
+      & > colgroup {
+        col {
+          &:last-of-type {
+            width: 17px !important;
+          }
+        }
+      }
+    }
+  }
+  .el-table__body-wrapper {
+    overflow: auto !important;
+    //border-right: 1px solid #dfe6ec;
+    //width: calc(100% - 1px);
+    .el-table__row {
+      td {
+        text-align: center;
+        font-size: 12px;
+        padding: 5px 0 !important;
+        &:last-child {
+          .cell {
+            display: flex;
+            //margin: 0 5px;
+            //flex-direction: column;
+            justify-content: space-around;
+            width: 100%;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow: ellipsis;
+            //padding: 0;
+            .el-button {
+              width: 100%;
+              height: 100%;
+              position: relative;
+              top: 0;
+              right: 0;
+              //padding: 0;
+              margin: 0 2px;
+              //span{
+              //  display: inline-block;
+              //  height: 100%;
+              //}
+            }
+          }
+        }
+      }
+    }
+  }
+  //滚动条
+  /**滚动条的宽度*/
+  ::-webkit-scrollbar {
+    width: 10px !important; /*竖向*/
+    height: 10px !important; /*横向*/
+  }
+  /*滚动条的滑块*/
+  ::-webkit-scrollbar-thumb {
+    background-color: #ddd !important;
+    border-radius: 8px !important;
+  }
+}
+::v-deep .taskColumnsFalse{
+  width: 100%;
+  height:calc(100% - 120px);
+  border: 1px solid #ddd;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color:#dfe6ec;
+}
+
+.page {
+  float: right;
+  height: 38px;
+  text-align: right;
+  ::v-deep .el-pagination {
+    height: 28px;
+    //position: relative;
+    //margin-top: 5px;
+    font-size: 12px;
+    & > .el-pagination__total {
+      font-size: 12px;
+    }
+    & > .el-pagination__sizes {
+      .el-input {
+        input {
+          font-size: 12px;
+          height: 26px;
+        }
+      }
+    }
+    button {
+      background-color: transparent;
+    }
+    & > .el-pager {
+      li {
+        font-size: 12px;
+        background-color: transparent;
+      }
+    }
+    & > .el-pagination__jump {
+      font-size: 12px;
+      .el-input {
+        input {
+          font-size: 12px;
+          height: 26px;
+        }
+      }
+    }
+  }
+}
+
+::v-deep .el-table tbody tr:hover>td {
+  background: var(--tablebackground) !important;
+}
+//表格鼠标悬浮时的样式 （高亮）
+::v-deep  {
+  .el-table--enable-row-hover {
+    .el-table__body tr {
+      &:hover {
+        background: rgb(223 239 253);
+        border: 1px solid #313463;
+      }
+    }
+  }
+}
+
+::v-deep .el-tabs__content {
+  padding: 10px;
+  overflow: auto;
+}
+
+// 基本信息弹框
+.dialog-basic {
+  margin-left: 10px;
+  .form-basic {
+    margin-bottom: 5px;
+    line-height: 25px;
+    border-bottom: 1px solid #ccc;
+    //margin-left: 15px;
+    //margin-right: 15px;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  .form-imgs {
+    position: relative;
+    height: 100%;
+    margin-bottom: 5px;
+    line-height: 25px;
+    border-bottom: 1px solid #ccc;
+    font-size: 14px;
+    font-weight: bold;
+    .img-viewr__wrapper{
+      position: absolute;
+    }
+    ::v-deep .icon__circle-close{
+      display: none;
+    }
+    ::v-deep .img-viewr__canvas{
+      overflow: hidden;
+    }
+    .imgs {
+      display: flex;
+    }
+    .img {
+      width: 150px;
+      height: 100px;
+      border: 1px solid #EEE;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px;
+    }
+    .img img {
+      max-width: 100%;
+      max-height: 100%;
+      cursor: pointer;
+    }
+  }
+
+}
+
+.imgtit {
+  position: absolute;
+  width: 100%;
+  z-index: 999999;
+  text-align: center;
+  bottom: 5px;
+  font-size:17px;
+  font-weight: 700;
+  text-shadow: -1px 1px 0 #fff, 1px 1px 0 #fff, 1px -1px 0 #fff, -1px -1px 0 #fff;
+}
+
+</style>

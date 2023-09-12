@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fudian.szhjg.mapper.TChoujianTaskMapper">
+  <resultMap id="BaseResultMap" type="com.fudian.szhjg.pojo.TChoujianTask">
+    <!--@mbg.generated-->
+    <!--@Table t_choujian_task-->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="pc_id" jdbcType="VARCHAR" property="pcId" />
+    <result column="aj_id" jdbcType="VARCHAR" property="ajId" />
+    <result column="bh" jdbcType="VARCHAR" property="bh" />
+    <result column="cjr_nx" jdbcType="VARCHAR" property="cjrNx" />
+    <result column="claim_time" jdbcType="TIMESTAMP" property="claimTime" />
+    <result column="finish_time" jdbcType="TIMESTAMP" property="finishTime" />
+    <result column="task_flag" jdbcType="VARCHAR" property="taskFlag" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="example.oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, pc_id, aj_id, bh, cjr_nx, claim_time, finish_time, task_flag
+  </sql>
+  <select id="selectByExample" parameterType="com.fudian.szhjg.pojo.TChoujianTaskExample" resultMap="BaseResultMap">
+    <!--@mbg.generated-->
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    from t_choujian_task
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <delete id="deleteByExample" parameterType="com.fudian.szhjg.pojo.TChoujianTaskExample">
+    <!--@mbg.generated-->
+    delete from t_choujian_task
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <select id="countByExample" parameterType="com.fudian.szhjg.pojo.TChoujianTaskExample" resultType="java.lang.Long">
+    <!--@mbg.generated-->
+    select count(*) from t_choujian_task
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map">
+    <!--@mbg.generated-->
+    update t_choujian_task
+    <set>
+      <if test="record.id != null">
+        id = #{record.id,jdbcType=VARCHAR},
+      </if>
+      <if test="record.pcId != null">
+        pc_id = #{record.pcId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.ajId != null">
+        aj_id = #{record.ajId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.bh != null">
+        bh = #{record.bh,jdbcType=VARCHAR},
+      </if>
+      <if test="record.cjrNx != null">
+        cjr_nx = #{record.cjrNx,jdbcType=VARCHAR},
+      </if>
+      <if test="record.claimTime != null">
+        claim_time = #{record.claimTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.finishTime != null">
+        finish_time = #{record.finishTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.taskFlag != null">
+        task_flag = #{record.taskFlag,jdbcType=VARCHAR},
+      </if>
+    </set>
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map">
+    <!--@mbg.generated-->
+    update t_choujian_task
+    set id = #{record.id,jdbcType=VARCHAR},
+      pc_id = #{record.pcId,jdbcType=VARCHAR},
+      aj_id = #{record.ajId,jdbcType=VARCHAR},
+      bh = #{record.bh,jdbcType=VARCHAR},
+      cjr_nx = #{record.cjrNx,jdbcType=VARCHAR},
+      claim_time = #{record.claimTime,jdbcType=TIMESTAMP},
+      finish_time = #{record.finishTime,jdbcType=TIMESTAMP},
+      task_flag = #{record.taskFlag,jdbcType=VARCHAR}
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+</mapper>

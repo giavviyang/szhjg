@@ -1,0 +1,261 @@
+package com.fudian.szhjg.controller;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.common.utils.SecurityUtils;
+import com.fudian.common.utils.poi.ExcelUtil;
+import com.fudian.common.utils.uuid.IdUtils;
+import com.fudian.szhjg.busiservice.CommonSzhjgService;
+import com.fudian.szhjg.busiservice.RwglService;
+import com.fudian.szhjg.busiservice.TaskService;
+import com.fudian.szhjg.mapper.TJuanjiMapper;
+import com.fudian.szhjg.pojo.TJuanji;
+import com.fudian.szhjg.pojo.TTaskJuan;
+import com.fudian.szhjg.pojo.vo.PieceImportVO;
+import com.fudian.szhjg.pojo.vo.TaskJuanVO;
+import com.fudian.szhjg.service.TJuanjiService;
+import com.fudian.szhjg.templateMode.CommonTemplate;
+import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import javax.servlet.http.HttpServletResponse;
+import java.util.Date;
+import java.util.List;
+
+@Api(tags = "A21  任务管理")
+@RestController
+@RequestMapping("/rwgl")
+public class RwglController {
+
+
+    @Autowired
+    private CommonSzhjgService commonSzhjgService;
+
+    @Autowired
+    private TJuanjiMapper tJuanjiMapper;
+    @Autowired
+    private TJuanjiService tJuanjiService;
+
+    @Autowired
+    private RwglService rwglService;
+
+    @Autowired
+    private TaskService taskService;
+
+
+    /**查询任务
+     * 2023-3-02
+     * @param tJuanji
+     * @return
+     */
+    @ApiOperation("查询全部任务信息列表")
+    @ApiOperationSupport(order = 1)
+    @GetMapping("/queryTaskList")
+    @ResponseBody
+    public CommonGridResult queryTaskList(TJuanji tJuanji){
+        CommonTemplate commonTemplate = new CommonTemplate(tJuanji,tJuanjiService,tJuanjiMapper);
+        LambdaQueryWrapper<TJuanji> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(tJuanji.getPcId())){
+            wrapper.eq(TJuanji::getPcId,tJuanji.getPcId());
+        }
+        if (StringUtils.isNotBlank(tJuanji.getBh())){
+            wrapper.like(TJuanji::getBh,tJuanji.getBh());
+        }
+        wrapper.orderByDesc(TJuanji::getRwzt).orderByAsc(TJuanji::getDqgx);
+        CommonGridResult commonGridResult = commonTemplate.list(wrapper);
+        return commonGridResult;
+    }
+
+
+
+    /**新增任务
+     * 2023-05-02
+     * @param tJuanji
+     * @return
+     */
+    @ApiOperation("新增任务")
+    @ApiOperationSupport(order = 2)
+    @PostMapping("/insertOneTask")
+    @ResponseBody
+    public CommonResult insertOneTask(@Validated @RequestBody TJuanji tJuanji){
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();  //获取当前的用户
+        //获取当前工序
+        Integer integer = commonSzhjgService.processId(tJuanji.getPcId(), tJuanji.getDqgx());
+        //获取批次档案类型
+        String dalx = taskService.getOneTask(tJuanji.getPcId());
+        String id = IdUtils.simpleUUID();   //创建uuid
+        tJuanji.setId(id);
+        tJuanji.setRwzt("未进行");
+        tJuanji.setDqgx(integer);
+        tJuanji.setCreateBy(userName);
+        tJuanji.setCreateTime(new Date());
+        tJuanji.setDalx(dalx);
+        CommonTemplate commonTemplate = new CommonTemplate(tJuanji,tJuanjiService,tJuanjiMapper);
+        CommonResult commonResult = commonTemplate.insert();
+        return  commonResult;
+    }
+
+    /**编辑任务
+     * 2023-05-04
+     * @param tJuanji
+     * @return
+     */
+    @ApiOperation("编辑任务")
+    @ApiOperationSupport(order = 3)
+    @PostMapping("/updateOneTask")
+    @ResponseBody
+    public CommonResult updateOneTask(@Validated @RequestBody TJuanji tJuanji){
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();  //获取当前的用户
+        tJuanji.setUpdateBy(userName);
+        tJuanji.setUpdateTime(new Date());
+
+        CommonTemplate commonTemplate = new CommonTemplate(tJuanji,tJuanjiService,tJuanjiMapper);
+        CommonResult commonResult = commonTemplate.update();
+        return  commonResult;
+    }
+
+    /**删除任务
+     * 2023-05-05
+     * @param id
+     * @return
+     */
+    @ApiOperation("删除任务")
+    @ApiOperationSupport(order = 4)
+    @DeleteMapping("/deleteOneTask/{id}")
+    @ResponseBody
+    public CommonResult deleteOneTask(@PathVariable("id") String id){
+        TJuanji tJuanji = new TJuanji();
+        CommonTemplate commonTemplate = new CommonTemplate(tJuanji,tJuanjiService,tJuanjiMapper);
+        CommonResult commonResult = commonTemplate.delete(id);
+        return  commonResult;
+    }
+    /*public CommonResult deleteOneTask(@PathVariable("id") String id){
+        //删除案卷关联表信息
+        CommonResult result = rwglService.deleteCorrelationTable(id);
+        if ( result.getCode()==666 ){
+            TTaskJuan tTaskJuan = new TTaskJuan();
+            CommonTemplate commonTemplate = new CommonTemplate(tTaskJuan,tTaskJuanService,tTaskJuanMapper);
+            CommonResult commonResult = commonTemplate.delete(id);
+            return  commonResult;
+        }else {
+            return result;
+        }
+    }*/
+
+
+    /**释放当前案卷绑定用户
+     * 2023-03-02
+     * @param nameId
+     * @return
+     */
+    @ApiOperation("释放当前案卷绑定用户(领取人)")
+    @ApiOperationSupport(order = 5)
+    @GetMapping("/releaseRecipient")
+    public CommonResult releaseRecipient(String nameId){
+        return rwglService.releaseRecipient(nameId);
+    }
+
+
+
+    @ApiOperation("查询编号组成字段信息")
+    @ApiOperationSupport(order = 11)
+    @PostMapping("/queryNumberedComposition")
+    @ResponseBody
+    public CommonResult queryNumberedComposition(String batchNameId){
+        return  taskService.queryNumberedComposition(batchNameId);
+    }
+
+    @ApiOperation("查询任务编号是否重名")
+    @ApiOperationSupport(order = 12)
+    @GetMapping("/checkTaskCount")
+    @ResponseBody
+    public ResponseEntity checkTaskCount(String BH, String Id){
+        String flag = "false";
+        LambdaQueryWrapper<TJuanji> juanWrapper = new LambdaQueryWrapper<>();
+        juanWrapper.eq(TJuanji::getBh,BH);
+        List<TJuanji> list = tJuanjiService.list(juanWrapper);
+        if ( list.size()!=0 ){
+            //判断id是否存在
+            if (StringUtils.isNotBlank(Id)){
+                //判断id是否相同
+                if (!Id.equals(list.get(0).getId())){
+                    flag = "true";
+                }
+            }else {
+                flag = "true";
+            }
+        }
+        return ResponseEntity.ok(CommonResult.success(flag));
+    }
+
+
+
+
+
+    @ApiOperation("查询项目中的工序")
+    @ApiOperationSupport(order = 21)
+    @GetMapping("/queryWorking")
+    public List<Object> queryWorking(String cxId,String type){
+        List<Object> list = rwglService.queryWorking(cxId,type);
+        return list;
+    }
+
+
+
+    /**批量添加任务
+     * 2023-02-17
+     * @param taskJuanVO
+     * @return
+     */
+    @ApiOperation("批量添加任务")
+    @PostMapping("/insertBatchAdd")
+    @ResponseBody
+    public CommonResult insertBatchAdd(@Validated @RequestBody TaskJuanVO taskJuanVO){
+        return taskService.insertBatchAdd(taskJuanVO);
+    }
+
+    /**任务批量导入
+     * 2023-02-14
+     * @return
+     */
+    @ApiOperation("任务批量导入")
+    @PostMapping("/depotImportfile")
+    public CommonResult depotImportfile(MultipartFile file, @RequestParam("id") String id, Integer gxxh) throws Exception {
+        ExcelUtil<TTaskJuan> util = new ExcelUtil<TTaskJuan>(TTaskJuan.class);
+        List<TTaskJuan> juanList = util.importExcel(file.getInputStream());
+        CommonResult commonResult = taskService.depotImportfile(juanList,id,gxxh);
+        return commonResult;
+    }
+
+    /**下载任务批量导入模板
+     * 2023-02-16
+     * @return
+     */
+    @ApiOperation("下载任务批量导入模板")
+    @PostMapping("/importImportfile")
+    public void importImportfile(HttpServletResponse response) {
+        ExcelUtil<TTaskJuan> util = new ExcelUtil<TTaskJuan>(TTaskJuan.class);
+        util.importTemplateExcel(response, "用户数据");
+    }
+
+    @ApiOperation("文件条目批量导入")
+    @PostMapping("/papersImportfile")
+    public CommonResult papersImportfile(MultipartFile file, @RequestParam("type") String type,
+                                         @RequestParam("id") String id, Integer gxxh) throws Exception{
+        ExcelUtil<PieceImportVO> util = new ExcelUtil<PieceImportVO>(PieceImportVO.class);
+        List<PieceImportVO> pieceList = util.importExcel(file.getInputStream());
+        CommonResult commonResult = taskService.papersImportfile(pieceList,type,id,gxxh);
+        return commonResult;
+    }
+
+
+
+}

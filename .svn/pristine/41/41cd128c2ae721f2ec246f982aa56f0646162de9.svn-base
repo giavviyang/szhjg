@@ -1,0 +1,683 @@
+package com.fudian.szhjg.busiservice.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.fudian.common.core.domain.entity.SysDictData;
+import com.fudian.common.exception.ServiceException;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.common.utils.SecurityUtils;
+import com.fudian.common.utils.StringUtils;
+import com.fudian.common.utils.uuid.IdUtils;
+import com.fudian.system.mapper.SysDictDataMapper;
+import com.fudian.szhjg.busiservice.CommonSzhjgService;
+import com.fudian.szhjg.busiservice.TaskService;
+import com.fudian.szhjg.mapper.*;
+import com.fudian.szhjg.pojo.*;
+import com.fudian.szhjg.pojo.vo.JuanjiVO;
+import com.fudian.szhjg.mapper.TTaskJuanMapper;
+import com.fudian.szhjg.mapper.TTaskPieceMapper;
+import com.fudian.szhjg.pojo.*;
+import com.fudian.szhjg.pojo.vo.PieceImportVO;
+import com.fudian.szhjg.pojo.vo.TMapperExcelVO;
+import com.fudian.szhjg.pojo.vo.TaskJuanVO;
+import com.fudian.szhjg.service.TBatchService;
+import com.fudian.szhjg.service.TJuanjiService;
+import com.fudian.szhjg.service.TTaskJuanService;
+import com.fudian.szhjg.service.TTaskPieceService;
+import com.fudian.szhjg.util.excel.ExcelUtil;
+import com.fudian.szhjg.service.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.lang.reflect.Method;
+import java.io.File;
+import java.text.DecimalFormat;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+@Service
+public class TaskServiceImpl implements TaskService {
+    private static final Logger log = LoggerFactory.getLogger(TaskServiceImpl.class);
+
+    @Autowired
+    private TBatchService tBatchService;
+    @Autowired
+    private TBatchMapper tBatchMapper;
+
+    @Autowired
+    private TMapperService mapperService;
+    @Autowired
+    private TMapperMapper tMapperMapper;
+
+    @Autowired
+    private TJuanjiService tJuanjiService;
+    @Autowired
+    private TJuanjiMapper tJuanjiMapper;
+
+    @Autowired
+    private TJianjiMapper tJianjiMapper;
+
+    @Autowired
+    private CommonSzhjgService commonSzhjgService;
+
+    @Autowired
+    private SysDictDataMapper  sysDictDataMapper;
+
+
+
+
+
+
+    //获取批次档案类型
+    @Override
+    public String getOneTask(String pcId) {
+        return getOneDh(pcId);
+    }
+    //根据批次id查询批次表
+    private String getOneDh(String pcId) {
+        LambdaQueryWrapper<TBatch> batchWrapper = new LambdaQueryWrapper<>();
+        batchWrapper.eq(TBatch::getId,pcId);
+        List<TBatch> list = tBatchService.list(batchWrapper);
+        TBatch batch = new TBatch();
+        if ( list.size()>0 ){
+            batch = list.get(0);
+        }
+        return batch.getDalx();
+    }
+
+
+    //查询编号组成字段信息
+    @Override
+    public CommonResult queryNumberedComposition(String batchNameId) {
+        //获取批次的档案类型
+        String dalx = getOneDh(batchNameId);
+        //获取动态编号组成字段
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,dalx).eq(TMapper::getPoints,"0").eq(TMapper::getBerSet,"2");
+        wrapper.orderByAsc(TMapper::getBerSort);
+        List<TMapper> listMapper = mapperService.list(wrapper);
+
+        List<Object> objectList = new ArrayList<>();
+        for (TMapper mapper : listMapper){
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("sourceName", mapper.getSourceName());
+            map.put("metadataMode", mapper.getMetadataMode());
+            objectList.add(map);
+        }
+        return CommonResult.success(objectList);
+    }
+
+
+
+    /**
+     * excel案卷导入
+     * @return java.lang.String
+     * @author MCY
+     * @date 2023/5/30 17:24
+     */
+    @Override
+    @Transactional
+    public CommonResult excelFileImport(MultipartFile[] multipartFiles, String batchId,Integer gxxh) {
+        //获取当前的用户
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();
+        /*根据批次id获取当类型id*/
+        TBatch tBatch = tBatchMapper.selectOne(Wrappers.<TBatch>lambdaQuery().eq(TBatch::getId, batchId));
+        /*表头字段*/
+        List<TMapper> tMappers = tMapperMapper.selectList(Wrappers.<TMapper>lambdaQuery().eq(TMapper::getDaId, tBatch.getDalx()).eq(TMapper::getPoints, 0));
+        if (tMappers.size() <= 0) return CommonResult.error("未找到映射字段");
+        /*生成一个线程安全的值*/
+        AtomicInteger i = new AtomicInteger();
+        /*解析数据，获取list*/
+        for (MultipartFile multipart : multipartFiles) {
+            String filePath = ExcelUtil.checkAndStorageFile(multipart).getPath();
+            File file = new File(filePath);
+            if (file == null) return CommonResult.error("未找到文件");
+            List<TJuanji> mapperList = ExcelUtil.readExcel(file, tMappers);
+            /*判断list是否为空*/
+            Optional<List<TJuanji>> tJuanjis = Optional.ofNullable(mapperList);
+            if (!tJuanjis.get().isEmpty()) {
+                tJuanjis.ifPresent(tJuanjis1 -> {
+                    JuanjiVO tJuanjiVO = new JuanjiVO()
+                            .setJuanjiList(tJuanjis1)
+                            .setRwzt("未进行")
+                            .setGxxh(gxxh)
+                            .setPcId(batchId)
+                            .setDalx(tBatch.getDalx())
+                            .setCreateTime(new Date())
+                            .setCreateBy(userName);
+                    long start = System.nanoTime();
+                    int i1 = tJuanjiMapper.bulkAdditions(tJuanjiVO);
+                    long end = System.nanoTime();
+                    System.out.println(String.format("导入时间：%d ms", (end - start) / 1000000));
+                    i.addAndGet(i1);
+                });
+                return CommonResult.success("解析到【" + tJuanjis.get().size() + "】条数据，导入成功【"
+                        + i + "】条，重复【" + String.valueOf(tJuanjis.get().size() - i.get()) + "】条");
+            }
+            /*删除临时文件*/
+            file.deleteOnExit();
+        }
+        return CommonResult.error("导入失败");
+    }
+
+
+    /**
+     * excel文件导入
+     * @return java.lang.String
+     * @author MCY
+     * @date 2023/5/30 17:24
+     */
+    @Override
+    @Transactional
+    public CommonResult importDataPiece(MultipartFile[] multipartFiles, String batchId,Integer gxxh) {
+        // 获取当前的用户
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();
+        /*根据批次id获取当类型id*/
+        TBatch tBatch = tBatchMapper.selectOne(Wrappers.<TBatch>lambdaQuery().eq(TBatch::getId, batchId));
+        /*表头字段*/
+        List<TMapper> tMappers = tMapperMapper.selectList(Wrappers.<TMapper>lambdaQuery().eq(TMapper::getDaId, tBatch.getDalx()).eq(TMapper::getPoints, 1));
+        /*档号拼接字段集合*/
+        List<TMapper> berSetMappers = tMapperMapper.selectList(Wrappers.<TMapper>lambdaQuery().eq(TMapper::getDaId, tBatch.getDalx()).eq(TMapper::getPoints, 0).eq(TMapper::getBerSet, "2").orderByAsc(TMapper::getBerSort));
+        if (tMappers.size() <= 0) return CommonResult.error("未找到映射字段");
+        /*生成一个线程安全的值*/
+        AtomicInteger i = new AtomicInteger();
+        Map<String, String> fileInformation = new HashMap<>(10);
+        /*获取案卷数据*/
+        tMapperMapper.mybatisStreamQueryBybatch(resultContext -> {
+            Map<String, String> resultObject = resultContext.getResultObject();
+            String key = String.valueOf(resultObject.get("bh"));
+            String value = String.valueOf(resultObject.get("id"));
+            fileInformation.put(key, value);
+        },batchId);
+        for (MultipartFile multipart : multipartFiles) {
+            String filePath = ExcelUtil.checkAndStorageFile(multipart).getPath();
+            File file = new File(filePath);
+            if (file == null) return CommonResult.error("未找到文件");
+            /*解析数据，获取list*/
+            List<TJianji> mapperList = ExcelUtil.readExcelFile(file, tMappers,fileInformation,berSetMappers);
+            /*判断list是否为空*/
+            Optional<List<TJianji>> tJianjis = Optional.ofNullable(mapperList);
+            if (!tJianjis.get().isEmpty()) {
+                tJianjis.ifPresent(tJianjis1 -> {
+                    JuanjiVO tJuanjiVO = new JuanjiVO()
+                            .setJianjiList(tJianjis1)
+                            //.setGxxh(gxxh)
+                            .setDalx(tBatch.getDalx())
+                            .setCreateTime(new Date())
+                            .setCreateBy(userName);
+                    long start = System.nanoTime();
+                    int i1 = tJianjiMapper.bulkAdditions(tJuanjiVO);
+                    long end = System.nanoTime();
+                    System.out.println(String.format("导入时间：%d ms", (end - start) / 1000000));
+                    i.addAndGet(i1);
+                });
+                return CommonResult.success("解析到" + tJianjis.get().size() + "条数据，成功" + i + "条");
+            }
+            /*删除临时文件*/
+            file.deleteOnExit();
+        }
+        return CommonResult.error("未找到匹配数据");
+    }
+
+
+
+    //下载-导入模板-查询字段列表
+    @Override
+    public List<String> headerNameList(String batchId, String pointsId) {
+        //存放动态生成表头字段信息
+        List<String> headerList = new ArrayList<>();
+        //获取批次的档案类型
+        String daId = getOneDh(batchId);
+        //查询字段列表
+        if ("0".equals(pointsId)){
+            headerList = archivesMapper(daId);
+        }else if ("1".equals(pointsId)){
+            headerList = documentMapper(daId);
+        }
+        return headerList;
+    }
+    //查询案卷
+    private List<String> archivesMapper(String daId) {
+        List<String> archivesList = new ArrayList<>();
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,"0").eq(TMapper::getEnterSet,"1");
+        wrapper.orderByAsc(TMapper::getSort);
+        List<TMapper> listMapper = mapperService.list(wrapper);
+        for (TMapper mapper : listMapper){
+            archivesList.add(mapper.getMetadataName());
+        }
+        return archivesList;
+    }
+    //查询文件
+    private List<String> documentMapper(String daId) {
+        List<String> documentList = new ArrayList<>();
+        //查询案卷编号
+        LambdaQueryWrapper<TMapper> wrapper1 = new LambdaQueryWrapper<>();
+        wrapper1.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,"0").eq(TMapper::getBerSet,"2");
+        wrapper1.orderByAsc(TMapper::getBerSort);
+        List<TMapper> listJu = mapperService.list(wrapper1);
+        if ( listJu.size()>0 ){
+            for (TMapper mapper : listJu){
+                documentList.add(mapper.getMetadataName());
+            }
+            documentList.add("件号");
+            documentList.add("页码");
+            documentList.add("页数");
+        }
+        //查询文件著录字段
+        LambdaQueryWrapper<TMapper> wrapper2 = new LambdaQueryWrapper<>();
+        wrapper2.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,"1").eq(TMapper::getDescriptionSet,"1");
+        wrapper2.orderByAsc(TMapper::getDescriptionSort);
+        List<TMapper> listJi = mapperService.list(wrapper2);
+        if ( listJi.size()>0 ){
+            for (TMapper mapper : listJi){
+                documentList.add(mapper.getMetadataName());
+            }
+            //去掉重复数据
+            List<String> uniqueList = documentList.stream().distinct().collect(Collectors.toList());
+            return uniqueList;
+        }else {
+            documentList = new ArrayList<>();
+            return documentList;
+        }
+    }
+
+
+
+
+    /*@Autowired
+    private TTaskJuanService tTaskJuanService;
+    @Autowired
+    private TTaskJuanMapper tTaskJuanMapper;
+
+    @Autowired
+    private TTaskPieceService tTaskPieceService;
+    @Autowired
+    private TTaskPieceMapper tTaskPieceMapper;
+    //按“卷”整理档号构成为:全宗号一目录号—案卷号—顺序号
+    //按“件”整理档号构成为︰全宗号—年度—保管期限—（组织机构或问题)—件号
+
+    //批量添加任务
+    @Override
+    public CommonResult insertBatchAdd(TaskJuanVO taskJuanVO) {
+        // 获取当前的用户
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();
+        //获取批次的档案类型
+        String dalx = getOneDh(taskJuanVO.getPcId());
+        //获取当前工序   0--不存在工序
+        Integer integer = commonSzhjgService.processId(taskJuanVO.getPcId(), null);
+
+        List<TTaskJuan> tProjectList = new ArrayList<>();
+
+        String start = taskJuanVO.getStartNumber();
+        String terminate = taskJuanVO.getTerminateNumber();
+        //转换类型
+        Integer a = Integer.valueOf(start);
+        Integer b = Integer.valueOf(terminate);
+        while(a<=b){
+            DecimalFormat df = new DecimalFormat("000");
+            String j = df.format(Integer.parseInt(String.valueOf(a)));
+            String dhName= taskJuanVO.getQzh()+"-"+taskJuanVO.getMlh()+"-"+j;
+            ////创建uuid
+            String id = IdUtils.simpleUUID();
+            //创建实体类
+            TTaskJuan taskJuan = new TTaskJuan();
+            //拷贝赋值
+            BeanUtils.copyProperties(taskJuanVO,taskJuan);
+            taskJuan.setId(id);
+            taskJuan.setAjh(j);
+            taskJuan.setRwzt("未进行");
+            taskJuan.setDqgx(integer);
+            taskJuan.setCreateBy(userName);
+            taskJuan.setCreateTime(new Date());
+            taskJuan.setDh(dhName);
+            taskJuan.setDalx(dalx);
+            tProjectList.add(taskJuan);
+            a++;
+        }
+
+        boolean i = tTaskJuanService.saveBatch(tProjectList);
+
+        CommonResult commonResult = new CommonResult();
+        if (i) {
+            commonResult.setCode(200);
+            commonResult.setMsg("批量新增任务成功");
+        } else {
+            commonResult.setCode(500);
+            commonResult.setMsg("批量新增任务失败");
+        }
+        return commonResult;
+    }
+
+    //任务批量导入
+    @Override
+    public CommonResult depotImportfile(List<TTaskJuan> juanList, String id, Integer gxxh) {
+        if (StringUtils.isNull(juanList) || juanList.size() == 0){
+            throw new ServiceException("导入案卷数据不能为空！");
+        }
+        // 获取当前的用户
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();
+        //创建存放信息数据变量
+        int successNum = 0;
+        int failureNum = 0;
+        StringBuilder successMsg = new StringBuilder();
+        StringBuilder failureMsg = new StringBuilder();
+        //获取工序序号
+        Integer gxid = null;
+        if ( gxxh !=null ){
+            gxid = gxxh;
+        }else {
+            gxid = commonSzhjgService.processId(id, gxxh);
+        }
+        //遍历集合
+        for ( TTaskJuan taskJuan : juanList ){
+            try {
+                //创建uuid
+                String uuid = IdUtils.simpleUUID();
+                TTaskJuan juan = new TTaskJuan();
+                //拷贝赋值
+                BeanUtils.copyProperties(taskJuan,juan);
+                juan.setId(uuid);
+                juan.setPcId(id);
+                juan.setCreateBy(userName);
+                juan.setCreateTime(new Date());
+                juan.setRwzt("未进行");
+                juan.setDqgx(gxid);
+                //保存
+                tTaskJuanMapper.insert(juan);
+                successNum++;
+            }catch (Exception e){
+                failureNum++;
+                String msg = "<br/>" + failureNum + "、档号【" + taskJuan.getDh() + "】导入失败。";
+                failureMsg.append(msg);  // + e.getMessage() //错误信息
+                log.error(msg, e);
+            }
+        }
+        if (failureNum > 0) {
+            failureMsg.insert(0, "导入失败！共 " + failureNum + " 条数据格式不正确 ：");
+            return new CommonResult(200,failureMsg.toString(),0);
+        }else {
+            successMsg.insert(0, "数据已全部导入成功！共 " + successNum + " 条。");
+        }
+        return new CommonResult(200, successMsg.toString(), 2);
+    }
+
+
+    //文件条目批量导入
+    @Override
+    public CommonResult papersImportfile(List<PieceImportVO> pieceList, String type, String id, Integer gxxh) {
+        CommonResult commonResult = new CommonResult();
+        if (StringUtils.isNull(pieceList) || pieceList.size() == 0){
+            throw new ServiceException("导入文件数据不能为空！");
+        }
+        // 获取当前的用户
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();
+        //创建存放信息数据变量
+        int numSuccess = 0;
+        int numFailure = 0;
+        StringBuilder msgSuccess = new StringBuilder();
+        StringBuilder msgFailure = new StringBuilder();
+        //判断导入的类型 批次为0 , 任务为1
+        if ("0".equals(type)){
+            //获取数据库案卷和导入文件的案卷,中的相同当的档号
+            Set<String> checkList =checkRepeat(pieceList,id);
+            if (checkList.size()==0){
+                //获取工序序号
+                Integer gxid = null;
+                if ( gxxh !=null ){
+                    gxid = gxxh;
+                }else {
+                    gxid = commonSzhjgService.processId(id, gxxh);
+                }
+                //去重
+                List<PieceImportVO> voList = pieceList.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(PieceImportVO::getAjdh))), ArrayList::new));
+                //按照案卷档号进行分组
+                Map<String, List<PieceImportVO>> pieceAjdhMap = pieceList.stream().collect(Collectors.groupingBy(PieceImportVO::getAjdh));
+                //循环去重之后的数据
+                for (PieceImportVO piece :voList){
+                    try {
+                        List<PieceImportVO> valueList = pieceAjdhMap.get(piece.getAjdh());
+                        String id1 = IdUtils.simpleUUID(); //创建uuid
+                        TTaskJuan taskJuan = new TTaskJuan();
+                        taskJuan.setId(id1);
+                        taskJuan.setPcId(id);
+                        taskJuan.setQzh(piece.getQzh());
+                        taskJuan.setMlh(piece.getMlh());
+                        taskJuan.setAjh(piece.getAjh());
+                        taskJuan.setMlh(piece.getMlh());
+                        taskJuan.setNd(piece.getNd());
+                        taskJuan.setDh(piece.getAjdh());
+                        taskJuan.setRwzt("未进行");
+                        taskJuan.setDqgx(gxid);
+                        taskJuan.setCreateBy(userName);
+                        taskJuan.setCreateTime(new Date());
+                        tTaskJuanMapper.insert(taskJuan);
+                        //循环文件信息
+                        for (PieceImportVO value :valueList){
+                            try {
+                                String id2 = IdUtils.simpleUUID(); //创建uuid
+                                TTaskPiece taskPiece = new TTaskPiece();
+                                BeanUtils.copyProperties(value, taskPiece);
+                                taskPiece.setId(id2);
+                                taskPiece.setAjId(id1);
+                                taskPiece.setSfsy("是");
+                                taskPiece.setCreateBy(userName);
+                                taskPiece.setCreateTime(new Date());
+                                tTaskPieceMapper.insert(taskPiece);
+                                numSuccess++;
+                            }catch (Exception e){
+                                numFailure++;
+                                String msg = "<br/>" + numFailure + "、档号【" + value.getDh() + "】导入失败。";
+                                msgFailure.append(msg);
+                            }
+                        }
+                        numSuccess++;
+                    }catch (Exception e){
+                        numFailure++;
+                        String msg = "<br/>" + numFailure + "、案卷档号【"+piece.getAjdh()+"】导入失败。";
+                        msgFailure.append(msg);
+                    }
+                }
+                if (numFailure>0) {
+                    msgFailure.insert(0, "导入失败！共 " + numFailure + " 条数据格式不正确 ：");
+                    return new CommonResult(200,msgFailure.toString(),0);
+                }else {
+                    msgSuccess.insert(0, "数据已全部导入成功！共 " + numSuccess + " 条。");
+                    return new CommonResult(200,msgSuccess.toString(),2);
+                }
+            }else {
+                return new CommonResult(500,"导入的文件数据中,案卷档号有的已存在");
+            }
+        }
+        if ("1".equals(type)){
+            //判断案卷档号是否好档号相同
+            Set<String> ajdhList = ajdhRepeat(pieceList,id);
+            if (ajdhList.size() != 0){
+                return new CommonResult(500,"导入的文件数据,案卷档号不符合勾选的信息");
+            }
+            //获取数据库案卷下文件档号和导入文件的档号,查看是否有相同档号
+            Set<String> fileList = fileRepeat(pieceList,id);
+            if (fileList.size()!=0){
+                return new CommonResult(500,"导入的文件数据,档号已存在");
+            }
+            //循环添加文件信息
+            for (PieceImportVO piece: pieceList){
+                try {
+                    String uuid = IdUtils.simpleUUID(); //创建uuid
+                    TTaskPiece taskPiece = new TTaskPiece();
+                    BeanUtils.copyProperties(piece, taskPiece);
+                    taskPiece.setId(uuid);
+                    taskPiece.setAjId(id);
+                    taskPiece.setCreateBy(userName);
+                    taskPiece.setCreateTime(new Date());
+                    taskPiece.setSfsy("是");
+                    tTaskPieceMapper.insert(taskPiece);
+                    numSuccess++;
+                }catch (Exception e){
+                    numFailure++;
+                    String msg = "<br/>" + numFailure + "、案卷档号【"+piece.getAjdh()+"】, 下档号【" + piece.getDh() + "】导入失败。";
+                    msgFailure.append(msg);
+                }
+            }
+            if (numFailure>0) {
+                msgFailure.insert(0, "导入失败！共 " + numFailure + " 条数据格式不正确 ：");
+                return new CommonResult(200,msgFailure.toString(),0);
+            }else {
+                msgSuccess.insert(0, "数据已全部导入成功！共 " + numSuccess + " 条。");
+                return new CommonResult(200,msgSuccess.toString(),2);
+            }
+        }
+        return commonResult;
+    }
+
+
+    //文件导入案卷级-----查询文件导入中的档号是否存在
+    private Set<String> checkRepeat(List<PieceImportVO> pieceList, String id) {
+        //查询批次中的案卷信息
+        LambdaQueryWrapper<TTaskJuan> juanWrapper = new LambdaQueryWrapper<>();
+        juanWrapper.eq(TTaskJuan::getPcId,id);
+        List<TTaskJuan> list = tTaskJuanService.list(juanWrapper);
+        //将信息转换成Set
+        //获取数据库中,批次案卷的档号字段
+        Set<String> dh1 = list.stream().map(TTaskJuan::getDh).collect(Collectors.toSet());//过滤重复内容
+        //获取导入文件信息的档号字段
+        Set<String> dh2 = pieceList.stream().map(PieceImportVO::getAjdh).collect(Collectors.toSet());
+        //求交集
+        Set<String> set = new HashSet<>();
+        //将dh1和dh2中相同的元素加入到set中
+        set.addAll(dh1);
+        set.retainAll(dh2);
+        return set;
+    }
+
+
+    //文件导入文件级 --判断是否是统一案卷档号
+    private Set<String> ajdhRepeat(List<PieceImportVO> pieceList, String id) {
+        //查询批次中的案卷信息
+        LambdaQueryWrapper<TTaskJuan> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TTaskJuan::getId,id);
+        List<TTaskJuan> juanList = tTaskJuanService.list(wrapper);
+        Set<String> ajdhList1 = juanList.stream().map(TTaskJuan::getDh).collect(Collectors.toSet());
+        Set<String> ajdhList2 = pieceList.stream().map(PieceImportVO::getAjdh).collect(Collectors.toSet());
+        //得到并集
+        Set<String> set = new HashSet<>();
+        set.addAll(ajdhList1);
+        set.addAll(ajdhList2);
+        //得到交集
+        Set<String> hashSet = new HashSet<>();
+        hashSet.addAll(ajdhList1);
+        hashSet.retainAll(ajdhList2);
+        //集合的差集 (并集-交集=差集)
+        set.removeAll(hashSet);
+        return set;
+    }
+
+    //文件导入文件级 --判断导入的文件级档号是否存在
+    private Set<String> fileRepeat(List<PieceImportVO> pieceList, String id) {
+        //查询批次中的案卷信息
+        LambdaQueryWrapper<TTaskPiece> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TTaskPiece::getAjId,id);
+        List<TTaskPiece> jianList = tTaskPieceService.list(wrapper);
+        Set<String> dhList1 = jianList.stream().map(TTaskPiece::getDh).collect(Collectors.toSet());
+        Set<String> dhList2 = pieceList.stream().map(PieceImportVO::getDh).collect(Collectors.toSet());
+        Set<String> set = new HashSet<>();
+        set.addAll(dhList1);
+        set.retainAll(dhList2);
+        return set;
+    }
+
+
+
+    //查询人事档案分类
+    @Override
+    public List<Object> queryDictType() {
+        List<Object> listMap = null;
+        try {
+            List<SysDictData> dataList = queryClassification();
+            listMap = new ArrayList<>();
+            for (SysDictData sysDictData : dataList) {
+                Map<String, Object> map = new HashMap<>();
+                map.put("label", sysDictData.getDictValue()+". "+sysDictData.getDictLabel());
+                map.put("value", sysDictData.getDictLabel());
+                if ("四".equals(sysDictData.getDictValue()) || "九".equals(sysDictData.getDictValue())){
+                    map.put("disabled",true);
+                }
+                listMap.add(map);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ArithmeticException("查询字典表人事档案分类数据失败");
+        }
+        return listMap;
+    }
+
+    //著录--案件著录查询人事档案分类类号
+    @Override
+    public String casePersonnelClass(String ajId, String clfl) {
+        String num = "";
+        LambdaQueryWrapper<TTaskPiece> pieceWrapper = new LambdaQueryWrapper<>();
+        pieceWrapper.eq(TTaskPiece::getAjId,ajId).eq(TTaskPiece::getClfl,clfl);
+        pieceWrapper.eq(TTaskPiece::getSfsy,"是");
+        List<TTaskPiece> pieceList = tTaskPieceService.list(pieceWrapper);
+
+        List<SysDictData> dataList = queryClassification();
+        String number = "";
+        for(SysDictData dictData :dataList){
+            if (dictData.getDictLabel().equals(clfl)){
+                number = dictData.getDictValue();
+            }
+        }
+        if (pieceList.size()>0){
+            //获取集合中,类号字段
+            Set<String> clList = pieceList.stream().map(TTaskPiece::getCllh).collect(Collectors.toSet());//过滤重复内容
+            int i1 = 0;
+            if(number.contains("-")){
+                for (String cl : clList){
+                    int lastIndex = cl.lastIndexOf("-");
+                    if (lastIndex != -1) {
+                        String suffix = cl.substring(lastIndex + 1);
+                        int i2 = Integer.parseInt(suffix);
+                        if ( i2>i1 ){
+                            i1 = i2;
+                        }
+                    }
+                }
+                num = number+"-"+(i1+1);
+            }else {
+                for (String cl : clList){
+                    int i2 = Integer.parseInt(cl);
+                    if ( i2>i1 ){
+                        i1 = i2;
+                    }
+                }
+                num = i1+1+"";
+            }
+        }else {
+            if (number.contains("-")){
+                num = number+ "-1";
+            } else {
+                num = "1";
+            }
+        }
+        return num;
+    }
+
+    //查询字典表人事档案材料类别
+    private List<SysDictData> queryClassification() {
+        List<SysDictData> dataList = sysDictDataMapper.selectDictDataByType("zb97");
+        if (StringUtils.isNotEmpty(dataList)){
+            return dataList;
+        }else {
+           dataList = new ArrayList<>();
+            return dataList;
+        }
+    }*/
+
+
+}

@@ -1,0 +1,91 @@
+package com.fudian.szhjg.pojo.vo;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fudian.common.pojo.BaseEntity;
+import com.fudian.szhjg.pojo.TJianji;
+import com.fudian.szhjg.pojo.TJuanji;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
+import org.springframework.format.annotation.DateTimeFormat;
+
+import java.io.Serializable;
+import java.util.Date;
+import java.util.List;
+
+/**
+    * 档案_案卷表
+    */
+@Data
+@Accessors(chain = true)
+public class JuanjiVO   {
+
+
+    @TableField(exist = false)
+    @ApiModelProperty(value = "集合")
+    private List<TJuanji> juanjiList;
+
+    @TableField(exist = false)
+    @ApiModelProperty(value = "集合")
+    private List<TJianji> jianjiList;
+
+    /**
+     * 主键
+     */
+    @ApiModelProperty(value="主键")
+    private String id;
+
+    /**
+     * 批次号(id)
+     */
+
+    @ApiModelProperty(value="批次号(id)")
+    private String pcId;
+
+    /**
+     * 档案类型
+     */
+    @ApiModelProperty(value="档案类型")
+    private String dalx;
+
+    /**
+     * 任务状态
+     */
+    @ApiModelProperty(value="任务状态")
+    private String rwzt;
+
+    /**
+     * 是否著录
+     */
+    @ApiModelProperty(value="是否著录")
+    private String cataloged;
+
+    /**
+     * 任务状态
+     */
+    @ApiModelProperty(value="工序序号")
+    private Integer gxxh;
+
+    /**
+     * 创建人
+     */
+    @ApiModelProperty(value="创建人")
+    private String createBy;
+
+    /**
+     * 创建时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @ApiModelProperty(value="创建时间")
+    private Date createTime;
+
+}

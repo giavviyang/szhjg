@@ -1,0 +1,203 @@
+package com.fudian.szhjg.busiservice.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.szhjg.busiservice.StatisticsCountService;
+import com.fudian.szhjg.mapper.TTaskPieceMapper;
+import com.fudian.szhjg.pojo.*;
+import com.fudian.szhjg.pojo.vo.CountVO;
+import com.fudian.szhjg.pojo.vo.StatisticsVO;
+import com.fudian.szhjg.service.*;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.util.*;
+import java.util.stream.Collectors;
+
+
+@Service
+public class StatisticsServiceImpl implements StatisticsCountService {
+
+    @Autowired
+    private TGxhjglService tGxhjglService;
+    @Autowired
+    private TGrgzltjService tGrgzltjService;
+
+    @Autowired
+    private TProjectService tProjectService;
+    @Autowired
+    private TBatchService tBatchService;
+    @Autowired
+    private TTaskJuanService tTaskJuanService;
+    @Autowired
+    private TTaskPieceService tTaskPieceService;
+    @Autowired
+    private TTaskPieceMapper tTaskPieceMapper;
+
+
+    //个人工作统计
+    @Override
+    public List<TGrgzltj> individualWorkload(StatisticsVO statisticsVO) {
+        List<TGrgzltj> counts = new ArrayList<>();
+        //获取工序
+        List<TGxhjgl> gxList = GxList();
+        //去重获取用户姓名
+        Set<String> nameList = nameSetList(statisticsVO);
+        for (String s : nameList){
+            for (TGxhjgl gx: gxList){
+                LambdaQueryWrapper<TGrgzltj> wrapper = new LambdaQueryWrapper<>();
+                wrapper.eq(TGrgzltj::getYhxm,s).eq(TGrgzltj::getJggx,gx.getGxxh());
+                List<TGrgzltj> list = tGrgzltjService.list(wrapper);
+                if ( list.size()>0 ){
+                    TGrgzltj tGrgzltj = new TGrgzltj();
+                    tGrgzltj.setYhxm(s);
+                    tGrgzltj.setJggx(gx.getGxmc());
+                    tGrgzltj.setJuanShu(String.valueOf(list.size()));
+                    int ysCount = 0;
+                    int jsCount = 0;
+                    for (TGrgzltj t :list){
+                        Integer ys = t.getYs();
+                        Integer jianShu = t.getJianShu();
+                        ysCount+=ys;
+                        jsCount+=jianShu;
+                    }
+                    tGrgzltj.setYs(ysCount);
+                    tGrgzltj.setJianShu(jsCount);
+                    counts.add(tGrgzltj);
+                }
+            }
+        }
+        return counts;
+    }
+    //查询工序
+    private List<TGxhjgl> GxList() {
+        LambdaQueryWrapper<TGxhjgl> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByAsc(TGxhjgl::getGxxh);
+        return tGxhjglService.list(wrapper);
+    }
+    //获取用户姓名
+    private Set<String> nameSetList(StatisticsVO statisticsVO) {
+        LambdaQueryWrapper<TGrgzltj> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(statisticsVO.getUserName())){
+            wrapper.like(TGrgzltj::getYhxm,statisticsVO.getUserName());
+        }
+        if (statisticsVO.getStartDate() != null){
+            wrapper.ge(TGrgzltj::getClaimTime,statisticsVO.getStartDate());
+        }
+        if (statisticsVO.getEndDate() != null){
+            wrapper.le(TGrgzltj::getFinishTime,statisticsVO.getEndDate());
+        }
+        List<TGrgzltj> list = tGrgzltjService.list(wrapper);
+        Set<String> set = new HashSet<>();
+        if (list.size()>0){
+            set= list.stream().map(TGrgzltj::getYhxm).collect(Collectors.toSet());
+        }
+        return set;
+    }
+
+
+    //批次产量查询完成项目选择框
+    @Override
+    public List<Object> batchYieldProject() {
+        List<Object> listMap = null;
+        try {
+            LambdaQueryWrapper<TProject> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(TProject::getIsfinished, 1);
+            wrapper.orderByDesc(TProject::getCreateTime);
+            List<TProject> list = tProjectService.list(wrapper);
+            listMap = new ArrayList<>();
+            for (TProject tProject :list){
+                Map<String, String> map = new HashMap<>();
+                map.put("label", tProject.getProjectName());
+                map.put("value", tProject.getId());
+                listMap.add(map);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ArithmeticException("查询已完成项目名称失败");
+        }
+        return listMap;
+    }
+    //批次产量统计
+    @Override
+    public List<CountVO> batchYieldStatistics(StatisticsVO statisticsVO) {
+        List<CountVO> countList = new ArrayList<>();
+        LambdaQueryWrapper<TProject> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(statisticsVO.getProjectId())){
+            wrapper.eq(TProject::getId,statisticsVO.getProjectId());
+        }
+        //wrapper.eq(TProject::getIsfinished, 1);
+        List<TProject> projectList = tProjectService.list(wrapper);
+        for (TProject project : projectList){
+            LambdaQueryWrapper<TBatch> batchWrapper = new LambdaQueryWrapper<>();
+            batchWrapper.eq(TBatch::getProjectId,project.getId());
+            List<TBatch> batchList = tBatchService.list(batchWrapper);
+
+            for (TBatch batch : batchList){
+                CountVO count = new CountVO();
+                //依据当前的批次id查询所有的案卷信息
+                LambdaQueryWrapper<TTaskJuan> taskWrapper = new LambdaQueryWrapper<>();
+                taskWrapper.eq(TTaskJuan::getPcId,batch.getId());
+                List<TTaskJuan> juanList = tTaskJuanService.list(taskWrapper);
+                //过滤出所有的案卷id 作为PID 查询当前的所有件信息
+                List<String> didList = juanList.stream().map(TTaskJuan::getId).collect(Collectors.toList());
+
+                if (didList.size()>0){
+                    LambdaQueryWrapper<TTaskPiece> pieceWrapper = new LambdaQueryWrapper<>();
+                    pieceWrapper.in(TTaskPiece::getAjId,didList);
+                    List<TTaskPiece> pieceList = tTaskPieceService.list(pieceWrapper);
+
+                    int a=0;
+                    int b=0;
+                    for (int j = 0; j < didList.size(); j++) {
+                        String did = didList.get(j);
+                        List<TTaskPiece> taskPieces = pieceList.stream().filter(TTaskPiece -> TTaskPiece.getAjId().equals(did) && TTaskPiece.getSfsy().equals("是")).collect(Collectors.toList());
+                        if (taskPieces.size()>0){
+                            for (TTaskPiece piece : taskPieces){
+                                a++;
+                                b+= piece.getYs();
+                            }
+                        }else {
+                            continue;
+                        }
+                    }
+
+                    LambdaQueryWrapper<TGrgzltj> grgzltjWrapper = new LambdaQueryWrapper<>();
+                    grgzltjWrapper.eq(TGrgzltj::getPcId,batch.getId()).eq(TGrgzltj::getState,"返工");
+                    List<TGrgzltj> grgzltjList = tGrgzltjService.list(grgzltjWrapper);
+                    Set<String> collect = grgzltjList.stream().map(TGrgzltj::getAjId).collect(Collectors.toSet());
+                    Integer num = collect.size();
+                    //如果返工案卷数为空或为0，直接设置返工率为0%
+                    if (collect == null || collect.size() == 0){
+                        count.setReworkRate("0%");
+                    }else {
+                        //查找该批次下的总案卷数
+                        Integer numCount = juanList.size();
+                        //计算返工率
+                        double rate = 100.0 * num / numCount;
+                        //取两位小数
+                        //BigDecimal big= new BigDecimal(rate, new MathContext(2, RoundingMode.HALF_UP));
+                        BigDecimal big= new BigDecimal(rate);
+                        big = big.setScale(2, BigDecimal.ROUND_HALF_UP);
+                        //转成字符串
+                        String rateStr = big.toPlainString() + "%";
+                        count.setReworkRate(rateStr);
+                    }
+
+                    count.setProjectId(project.getId());
+                    count.setProjectName(project.getProjectName());
+                    count.setBatchId(batch.getId());
+                    count.setBatchName(batch.getPcName());
+                    count.setFileCount(juanList.size()+"");
+                    count.setPieceCount(a+"");
+                    count.setPageCount(b+"");
+                    countList.add(count);
+                }else {
+                    continue;
+                }
+            }
+        }
+        return countList;
+    }
+}

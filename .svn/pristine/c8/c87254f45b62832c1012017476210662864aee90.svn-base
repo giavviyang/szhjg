@@ -1,0 +1,31 @@
+package com.fudian.szhjg.busiservice;
+
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.szhjg.pojo.TGrgzltj;
+import com.fudian.szhjg.pojo.vo.CheckVO;
+
+import java.util.List;
+
+public interface CheckTaskService {
+
+    //抽检项目批次查询
+    CommonResult completeProjectBatch();
+
+    //页面动态展示批次名称
+    List<Object> queryBatchName();
+
+    //新增抽检之前查询条数
+    CommonResult addSpotNumber(CheckVO checkVO);
+    //新增生成抽检
+    CommonResult addSpotCheck(CheckVO checkVO);
+
+    //档号抽检重名查询
+    String checkNameDhCount(String dh);
+    //新增档号抽检
+    CommonResult addDhCheck(String pcId, String qzh, String dh);
+
+    //查询案卷工序记录
+    CommonGridResult queryAJRecord(TGrgzltj tGrgzltj);
+
+}

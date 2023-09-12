@@ -1,0 +1,130 @@
+package com.fudian.szhjg.busiservice.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.common.utils.SecurityUtils;
+import com.fudian.szhjg.busiservice.BatchManagementService;
+import com.fudian.szhjg.mapper.TJuanjiMapper;
+import com.fudian.szhjg.pojo.*;
+import com.fudian.szhjg.service.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+
+@Service
+public class BatchManagementServiceImpl implements BatchManagementService {
+
+    @Autowired
+    private TProjectService tProjectService;
+
+    @Autowired
+    private TBatchService tBatchService;
+
+    @Autowired
+    private TJuanjiMapper tJuanjiMapper;
+    @Autowired
+    private TJuanjiService tJuanjiService;
+
+    @Autowired
+    private TDalxglService dalxglService;
+
+
+
+    //查询进行中项目名称
+    @Override
+    public List<Object> queryProjectName() {
+        List<Object> listMap = null;
+        try {
+            LambdaQueryWrapper<TProject> tProjectWrapper = new LambdaQueryWrapper<>();
+            tProjectWrapper.eq(TProject::getIsfinished, 0);
+            tProjectWrapper.orderByDesc(TProject::getCreateTime);
+            List<TProject> list = tProjectService.list(tProjectWrapper);
+            listMap = new ArrayList<>();
+            for (TProject tProject : list) {
+                Map<String, String> map = new HashMap<>();
+                map.put("label", tProject.getProjectName());
+                map.put("value", tProject.getId());
+                listMap.add(map);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new ArithmeticException("查询进行中项目名称数据失败");
+        }
+        return listMap;
+    }
+
+
+    //查询批次下是否有案卷
+    @Override
+    public String queryBatchData(String id) {
+        String flag="false";
+        LambdaQueryWrapper<TJuanji> taskWrapper = new LambdaQueryWrapper<>();
+        taskWrapper.eq(TJuanji::getPcId,id);
+        List<TJuanji> list = tJuanjiService.list(taskWrapper);
+        if ( list.size()>0 ){
+            flag = "true";
+        }
+        return flag;
+    }
+
+
+    //完成批次
+    @Override
+    public CommonResult completeBatch(String id) {
+        //查询当前批次信息
+        LambdaQueryWrapper<TBatch> batchWrapper = new LambdaQueryWrapper<>();
+        batchWrapper.eq(TBatch::getId,id);
+        List<TBatch> list = tBatchService.list(batchWrapper);
+        TBatch tBatch = new TBatch();
+        if ( list.size()>0 ){
+            tBatch = list.get(0);
+        }
+        //查询案卷信息
+        LambdaQueryWrapper<TJuanji> taskWrapper = new LambdaQueryWrapper<>();
+        taskWrapper.eq(TJuanji::getPcId,tBatch.getId());
+        taskWrapper.and(wrapper->wrapper.ne(TJuanji::getRwzt,"已完成").or().isNull(TJuanji::getRwzt));
+        Integer i = tJuanjiMapper.selectCount(taskWrapper);
+        if ( i>0 ){
+            return new CommonResult(500,"当前批次存在未完成的任务,无法提交");
+        }
+        //获取当前的用户
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();
+
+        //保存当前批次信息
+        tBatch.setIsfinished("1");
+        tBatch.setUpdateBy(userName);
+        Date date = new Date();
+        tBatch.setUpdateTime(date);
+        tBatch.setEnddate(date);
+        boolean b = tBatchService.updateById(tBatch);
+        if ( b ){
+            return new CommonResult(200,"批次完成提交成功");
+        }else {
+            return new CommonResult(500,"批次完成提交失败");
+        }
+    }
+
+
+    //根据id查询项目信息
+    @Override
+    public String getProjectOne(String projectId) {
+        LambdaQueryWrapper<TProject> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TProject::getId,projectId);
+        List<TProject> list = tProjectService.list(wrapper);
+        TProject tProject = new TProject();
+        if ( list.size()>0 ){
+            tProject = list.get(0);
+        }
+
+        LambdaQueryWrapper<TDalxgl> dalxglWrapper = new LambdaQueryWrapper<>();
+        dalxglWrapper.eq(TDalxgl::getId,tProject.getDalx());
+        List<TDalxgl> list1 = dalxglService.list(dalxglWrapper);
+        TDalxgl dalxgl = new TDalxgl();
+        if ( list1.size()>0 ){
+            dalxgl = list1.get(0);
+        }
+        return dalxgl.getId();
+    }
+
+}

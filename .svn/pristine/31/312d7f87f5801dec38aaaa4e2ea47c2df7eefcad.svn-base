@@ -1,0 +1,50 @@
+package com.fudian.szhjg.controller;
+
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.system.mapper.SysLogininforMapper;
+import com.fudian.szhjg.busiservice.AHomePageService;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.ArrayList;
+import java.util.List;
+
+
+@Api(tags = "A00  首页方法")
+@RestController
+@RequestMapping("/home/page")
+public class AHomePageController {
+
+    @Autowired
+    private SysLogininforMapper logininforMapper;
+
+    @Autowired
+    private AHomePageService homePageService;
+
+
+    @ApiOperation("累计访问(查询登入日志)")
+    @GetMapping("/queryCumulativeAccess")
+    @ResponseBody
+    public CommonGridResult queryCumulativeAccess(){
+        List<String> list = new ArrayList<>();
+        int i = logininforMapper.getLogininforCumulative();
+        return new CommonGridResult(i,list);
+    }
+
+
+    @ApiOperation("查询处理任务(已处理和未处理)")
+    @GetMapping("/queryProcessingTask")
+    @ResponseBody
+    public CommonResult queryProcessingTask(){
+        return homePageService.queryProcessingTask();
+    }
+
+
+
+}

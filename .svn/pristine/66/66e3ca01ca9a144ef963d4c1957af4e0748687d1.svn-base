@@ -1,0 +1,72 @@
+import request from "@/utils/request";
+
+//抽检任务生成
+//下拉框查询项目批次
+export function completeProjectBatch(params) {
+  return request({
+    url: '/spot/checkTask/completeProjectBatch',
+    method: 'get',
+    params: params
+  })
+}
+
+//页面动态展示批次名称
+export function queryBatchName() {
+  return request({
+    url: '/spot/checkTask/queryBatchName/',
+    method: 'get'
+  })
+}
+
+//查询抽检任务列表
+export function querySpotCheckList(params) {
+  return request({
+    url: '/spot/checkTask/querySpotCheckList',
+    method: 'get',
+    params: params
+  })
+}
+
+//新增生成抽检之前查询条数
+export function addSpotNumber(data) {
+  return request({
+    url: '/spot/checkTask/addSpotNumber',
+    method: 'post',
+    data: data
+  })
+}
+//新增生成抽检
+export function addSpotCheck(data) {
+  return request({
+    url: '/spot/checkTask/addSpotCheck',
+    method: 'post',
+    data: data
+  })
+}
+
+//档号抽检重名查询
+export function checkNameDhCount(params){
+  return request({
+    url: '/spot/checkTask/checkNameDhCount',
+    method: 'get',
+    params: params
+  })
+}
+
+//新增档号抽检
+export function addDhCheck(data) {
+  return request({
+    url: '/spot/checkTask/addDhCheck',
+    method: 'post',
+    data: data
+  })
+}
+
+//查询案卷工序记录
+export function queryAJRecord(params) {
+  return request({
+    url: '/spot/checkTask/queryAJRecord',
+    method: 'get',
+    params: params
+  })
+}

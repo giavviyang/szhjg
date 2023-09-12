@@ -1,0 +1,444 @@
+package com.fudian.szhjg.busiservice.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.common.utils.SecurityUtils;
+import com.fudian.common.utils.uuid.IdUtils;
+import com.fudian.szhjg.busiservice.CommonApproachService;
+import com.fudian.szhjg.mapper.TGrgzltjMapper;
+import com.fudian.szhjg.mapper.TJianjiMapper;
+import com.fudian.szhjg.mapper.TJuanjiMapper;
+import com.fudian.szhjg.pojo.*;
+import com.fudian.szhjg.pojo.vo.ReworkVO;
+import com.fudian.szhjg.service.*;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+
+
+@Service
+public class CommonApproachServiceImpl implements CommonApproachService {
+
+    @Autowired
+    private TBatchService tBatchService;
+
+    @Autowired
+    private TJuanjiMapper tJuanjiMapper;
+    @Autowired
+    private TJuanjiService tJuanjiService;
+
+    @Autowired
+    private TJianjiMapper tJianjiMapper;
+    @Autowired
+    private TJianjiService tJianjiService;
+
+    @Autowired
+    private TProjectGxhjService tProjectGxhjService;
+
+    @Autowired
+    private TGrgzltjService tGrgzltjService;
+    @Autowired
+    private TGrgzltjMapper tGrgzltjMapper;
+
+
+
+
+    //领取任务-领取选择任务Id(其他工序)
+    @Override
+    public CommonResult selectFetchTaskIds(String[] ids) {
+        //获取当前的用户, 当前时间
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();
+        Date date = new Date();
+        //根据id集合查询数据
+        List<String> idList = Arrays.asList(ids);
+        LambdaQueryWrapper<TJuanji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(TJuanji::getId,idList);
+        List<TJuanji> list = tJuanjiService.list(wrapper);
+        if ( list.size()>0 ){
+            for ( TJuanji j : list ){
+                j.setLqr(userName);
+                j.setRwzt("进行中");
+                j.setClaimTime(date);
+            }
+            boolean b = tJuanjiService.updateBatchById(list);
+            if (b){
+                return CommonResult.success("任务领取成功");
+            }else {
+                return CommonResult.error("任务领取失败");
+            }
+        }
+        return CommonResult.error("任务领取失败");
+    }
+    //领取任务-领取选择任务Id(目录著录专用)
+    @Override
+    public CommonResult selectRecordTaskIds(String[] ids) {
+        //获取当前的用户, 当前时间
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();
+        Date date = new Date();
+        //根据id集合查询数据
+        List<String> idList = Arrays.asList(ids);
+        LambdaQueryWrapper<TJuanji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(TJuanji::getId,idList);
+        List<TJuanji> list = tJuanjiService.list(wrapper);
+        if ( list.size()>0 ){
+            for ( TJuanji j : list ){
+                j.setLqr(userName);
+                j.setRwzt("进行中");
+                j.setCataloged("著录中");
+                j.setClaimTime(date);
+            }
+            boolean b = tJuanjiService.updateBatchById(list);
+            if (b){
+                return CommonResult.success("任务领取成功");
+            }else {
+                return CommonResult.error("任务领取失败");
+            }
+        }
+        return CommonResult.error("任务领取失败");
+    }
+
+
+
+    //通过-查询下一个工序名称
+    @Override
+    public String queryNextGxName(String id, Integer gxName) {
+        //获取项目id
+        String xmId = acquireProjectId(id);
+        //查询工序
+        List<TProjectGxhj> list = queryGxList(xmId);
+        //存放数据列表下标
+        int top = 0;
+        for (int i=0;i<list.size();i++){
+            if(list.get(i).getGxxh().equals(gxName)){
+                top = i;
+            }
+        }
+        //判断工序是否是图像质检,去除集合中图像质检和处理(6)的工序
+        if (gxName == 5){
+            list.removeIf(element -> element.getGxxh() == 6);
+        }
+        //获取下一个工序信息
+        TProjectGxhj projectGxhj = new TProjectGxhj();
+        //判断是否是最后一个工序
+        if (top == (list.size() - 1)){
+            projectGxhj = list.get(top);
+        }else {
+            projectGxhj = list.get(top+1);
+        }
+
+        return projectGxhj.getGxmc();
+    }
+
+    //通过-数据加工提交方法
+    @Override
+    public CommonResult processingSubmitPass(String ajId, Integer gxId) {
+        //获取当前日期
+        Date date = new Date();
+        String state = "通过";
+        boolean w = workloadStatistics(ajId,date,state,gxId,"");
+        if (!w){
+            return CommonResult.error(500, "提交失败");
+        }
+        //获取项目id
+        String xmId = acquireProjectId(ajId);
+        //查询工序
+        List<TProjectGxhj> list = queryGxList(xmId);
+        //存放数据列表下标
+        int top = 0;
+        for (int i=0;i<list.size();i++){
+            if(list.get(i).getGxxh().equals(gxId)){
+                top = i;
+            }
+        }
+        //判断工序是否是图像质检,去除集合中图像质检和处理(6)的工序
+        if (gxId == 5){
+            list.removeIf(element -> element.getGxxh() == 6);
+        }
+        //获取下一个工序信息
+        TProjectGxhj projectGxhj = new TProjectGxhj();
+        //查询案卷信息
+        TJuanji taskJuan = queryJuan(ajId);
+        //判断是否是最后一个工序
+        if (top == (list.size() - 1)){
+            projectGxhj = list.get(top);
+            taskJuan.setDqgx(projectGxhj.getGxxh());
+            taskJuan.setRwzt("已完成");
+            //taskJuan.setLqr("");
+            taskJuan.setClaimTime(null);
+            taskJuan.setFinishTime(date);
+        }else {
+            projectGxhj = list.get(top+1);
+            taskJuan.setDqgx(projectGxhj.getGxxh());
+            taskJuan.setRwzt("未进行");
+            taskJuan.setLqr("");
+            taskJuan.setClaimTime(null);
+            taskJuan.setFinishTime(date);
+        }
+        //保存
+        boolean b = tJuanjiService.updateById(taskJuan);
+        if (b) {
+            return new CommonResult(200,"提交成功");
+        } else {
+            return new CommonResult(500,"提交失败");
+        }
+    }
+
+    //通过-目录著录任务提交方法
+    @Override
+    public CommonResult catalogueSubmitPass(String ajId) {
+        //获取当前日期
+        Date date = new Date();
+        String state = "通过";
+        boolean w = workloadStatistics(ajId,date,state,7,"");
+        if (!w){
+            return CommonResult.error(500, "提交失败");
+        }
+        //查询案卷信息
+        TJuanji taskJuan = queryJuan(ajId);
+        taskJuan.setRwzt("未进行");
+        taskJuan.setCataloged("著录完成");
+        taskJuan.setLqr("");
+        taskJuan.setClaimTime(null);
+        taskJuan.setFinishTime(date);
+        //保存
+        boolean b = tJuanjiService.updateById(taskJuan);
+        if (b) {
+            return new CommonResult(200,"提交成功");
+        } else {
+            return new CommonResult(500,"提交失败");
+        }
+    }
+
+
+
+    //返工-查询项目对应的工序
+    @Override
+    public List<Object> reworkQueryProject(String ajId) {
+        List<Object> listMap = null;
+        try {
+            //获取项目id
+            String name = acquireProjectId(ajId);
+            //获取项目中工序列表
+            List<TProjectGxhj> list = queryGxList1(name);
+            listMap = new ArrayList<>();
+            for (TProjectGxhj gx : list){
+                Map<String, Object> map = new HashMap<>();
+                map.put("label", gx.getGxmc());
+                map.put("value", gx.getGxxh());
+                listMap.add(map);
+            }
+        }catch (Exception e) {
+            e.printStackTrace();
+            throw new ArithmeticException("查询进行中项目名称数据失败");
+        }
+        return listMap;
+    }
+
+    //返工-提交返工方法
+    @Override
+    public CommonResult reworkSubmitPass(ReworkVO reworkVO) {
+        //获取当前日期
+        Date date = new Date();
+        String state = "返工";
+        boolean w = workloadStatistics(reworkVO.getAnJuanId(),date,state,null,reworkVO.getReworkCause());
+        if (!w){
+            return CommonResult.error(500, "提交失败");
+        }
+        //查询案卷信息
+        TJuanji taskJuan = queryJuan(reworkVO.getAnJuanId());
+        if (reworkVO.getReworkId() == 7){
+            taskJuan.setCataloged("未著录");
+        }else {
+            taskJuan.setDqgx(reworkVO.getReworkId());
+        }
+        taskJuan.setXgyj(reworkVO.getReworkCause());
+        taskJuan.setRwzt("未进行");
+        taskJuan.setLqr("");
+        taskJuan.setClaimTime(null);
+        taskJuan.setFinishTime(date);
+
+
+        boolean b = tJuanjiService.updateById(taskJuan);
+        if ( b ){
+            return new  CommonResult(200,"提交返工成功");
+        }else {
+            return new  CommonResult(500,"提交返工失败");
+        }
+    }
+
+    //返工-目录著录任务返工方法
+    @Override
+    public CommonResult catalogDescriptionRework(ReworkVO reworkVO) {
+        //获取当前日期
+        Date date = new Date();
+        String state = "返工";
+        boolean w = workloadStatistics(reworkVO.getAnJuanId(),date,state,7,reworkVO.getReworkCause());
+        if (!w){
+            return CommonResult.error(500, "提交失败");
+        }
+        //查询案卷信息
+        TJuanji taskJuan = queryJuan(reworkVO.getAnJuanId());
+        taskJuan.setDqgx(reworkVO.getReworkId());
+        taskJuan.setXgyj(reworkVO.getReworkCause());
+        taskJuan.setRwzt("未进行");
+        taskJuan.setCataloged("未著录");
+        taskJuan.setLqr("");
+        taskJuan.setClaimTime(null);
+        taskJuan.setFinishTime(date);
+        //保存
+        boolean b = tJuanjiService.updateById(taskJuan);
+        if ( b ){
+            return new  CommonResult(200,"提交返工成功");
+        }else {
+            return new  CommonResult(500,"提交返工失败");
+        }
+    }
+
+
+
+    //查看当前用户记录(查看记录)
+    @Override
+    public CommonGridResult viewCurrentUserRecord(TGrgzltj tGrgzltj) {
+        //获取当前的用户
+        String name = SecurityUtils.getLoginUser().getUser().getNickName();
+        LambdaQueryWrapper<TGrgzltj> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TGrgzltj::getYhxm,name).eq(TGrgzltj::getJggx,tGrgzltj.getJggx());
+        wrapper.orderByDesc(TGrgzltj::getFinishTime);
+        PageHelper.startPage(tGrgzltj.getPageNum(),tGrgzltj.getPageSize());
+        List<TGrgzltj> list = tGrgzltjService.list(wrapper);
+        Page page = (Page) list;
+        CommonGridResult commonGridResult = new CommonGridResult(tGrgzltj.getPageNum(), tGrgzltj.getPageSize(), page.getTotal(), list);
+        return commonGridResult;
+    }
+
+
+
+    //查询总页数和图片总数
+    @Override
+    public CommonResult queryPictureTotal(String ajId) {
+        HashMap<String,Object> map = new HashMap<>();
+        //总页数
+        LambdaQueryWrapper<TJianji> wrapper1 = new LambdaQueryWrapper<>();
+        wrapper1.eq(TJianji::getAjId,ajId);
+        Integer i1 = tJianjiMapper.selectCount(wrapper1);
+        map.put("countTotal",i1);
+        //图片总数
+        LambdaQueryWrapper<TJianji> wrapper2 = new LambdaQueryWrapper<>();
+        wrapper2.eq(TJianji::getAjId,ajId).isNotNull(TJianji::getTpdz).ne(TJianji::getTpdz,"");
+        Integer i2 = tJianjiMapper.selectCount(wrapper2);
+        map.put("pictureTotal",i2);
+        return CommonResult.success(map);
+    }
+
+
+
+
+
+    //获取项目id
+    private String acquireProjectId(String id) {
+        LambdaQueryWrapper<TJuanji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TJuanji::getId,id);
+        List<TJuanji> list = tJuanjiService.list(wrapper);
+        String pcId = "";
+        if ( list.size()>0 ){
+            pcId = list.get(0).getPcId();
+        }
+        LambdaQueryWrapper<TBatch> batchWrapper = new LambdaQueryWrapper<>();
+        batchWrapper.eq(TBatch::getId,pcId);
+        List<TBatch> batchList = tBatchService.list(batchWrapper);
+        String projectId = "";
+        if (batchList.size()>0){
+            projectId = batchList.get(0).getProjectId();
+        }
+        return projectId;
+    }
+
+    //查询项目工序
+    private List<TProjectGxhj> queryGxList(String id) {
+        LambdaQueryWrapper<TProjectGxhj> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TProjectGxhj::getProjectId,id).ne(TProjectGxhj::getGxxh, 7);
+        wrapper.orderByAsc(TProjectGxhj::getGxxh);
+        List<TProjectGxhj> list = tProjectGxhjService.list(wrapper);
+        return list;
+    }
+    //查询项目工序
+    private List<TProjectGxhj> queryGxList1(String id) {
+        LambdaQueryWrapper<TProjectGxhj> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TProjectGxhj::getProjectId,id);
+        wrapper.orderByAsc(TProjectGxhj::getGxxh);
+        List<TProjectGxhj> list = tProjectGxhjService.list(wrapper);
+        return list;
+    }
+
+    //通过/返工---插入统计表
+    private boolean workloadStatistics(String ajId,Date date,String state,Integer gxName,String reworkCause) {
+        String userName = SecurityUtils.getLoginUser().getUser().getNickName();  // 获取当前的用户
+        Map<String, Integer> map = acquireAmount(ajId);
+        String id = IdUtils.simpleUUID();   //获取uuid
+        //查询案卷信息
+        TJuanji taskJuan = queryJuan(ajId);
+        TGrgzltj tGrgzltj = new TGrgzltj();
+        tGrgzltj.setId(id);
+        tGrgzltj.setPcId(taskJuan.getPcId());
+        tGrgzltj.setAjId(ajId);
+        tGrgzltj.setYhxm(userName);
+        if ( gxName != null && gxName.equals(6)){
+            tGrgzltj.setJggx(Integer.toString(gxName));
+        }else if ( gxName != null && gxName.equals(7)){
+            tGrgzltj.setJggx(Integer.toString(gxName));
+        }else {
+            tGrgzltj.setJggx(Integer.toString(taskJuan.getDqgx()));
+        }
+        tGrgzltj.setBh(taskJuan.getBh());
+        tGrgzltj.setJianShu(map.get("js"));
+        tGrgzltj.setYs(map.get("ys"));
+        tGrgzltj.setClaimTime(taskJuan.getClaimTime());
+        tGrgzltj.setFinishTime(date);
+        tGrgzltj.setState(state);
+        if (StringUtils.isNotBlank(reworkCause)){
+            tGrgzltj.setXgyj(reworkCause);
+        }
+        int i = tGrgzltjMapper.insert(tGrgzltj);
+        boolean b = true;
+        if ( i>0 ) {
+            return b;
+        }else {
+            return false;
+        }
+    }
+
+    //查询案卷信息
+    private TJuanji queryJuan(String ajId) {
+        LambdaQueryWrapper<TJuanji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TJuanji::getId,ajId);
+        List<TJuanji> list = tJuanjiService.list(wrapper);
+        TJuanji tJuanji = new TJuanji();
+        if ( list.size()>0 ){
+            tJuanji = list.get(0);
+        }
+        return tJuanji;
+    }
+
+    //获取案卷的件数
+    private Map<String, Integer> acquireAmount(String ajId) {
+        Map<String, Integer> map = new HashMap<>();
+        LambdaQueryWrapper<TJianji> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TJianji::getAjId,ajId).eq(TJianji::getSfsy,"是");
+        List<TJianji> list = tJianjiService.list(wrapper);
+        int ysCount = 0;
+        for (TJianji t :list){
+            Integer ys = t.getYs();
+            ysCount+=ys;
+        }
+        map.put("js",list.size());
+        map.put("ys",ysCount);
+        return map;
+    }
+
+
+}

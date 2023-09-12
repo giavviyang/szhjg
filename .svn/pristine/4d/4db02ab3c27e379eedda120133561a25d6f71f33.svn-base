@@ -1,0 +1,36 @@
+package com.fudian.szhjg.busiservice.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.szhjg.busiservice.AHomePageService;
+import com.fudian.szhjg.pojo.TTaskJuan;
+import com.fudian.szhjg.service.TTaskJuanService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+
+@Service
+public class AHomePageServiceImpl implements AHomePageService {
+
+    @Autowired
+    private TTaskJuanService taskJuanService;
+
+
+    //查询处理任务(已处理和未处理)
+    @Override
+    public CommonResult queryProcessingTask() {
+        HashMap<String,Object> map = new HashMap<>();
+        //已处理任务
+        LambdaQueryWrapper<TTaskJuan> wrapper1 = new LambdaQueryWrapper<>();
+        wrapper1.eq(TTaskJuan::getRwzt,"已完成");
+        int count1 = taskJuanService.count(wrapper1);
+        map.put("ywc",count1);
+        //未处理任务
+        LambdaQueryWrapper<TTaskJuan> wrapper2 = new LambdaQueryWrapper<>();
+        wrapper2.and(wrapper->wrapper.eq(TTaskJuan::getRwzt,"未进行").or().eq(TTaskJuan::getRwzt,"进行中"));
+        int count2 = taskJuanService.count(wrapper2);
+        map.put("wwc",count2);
+        return CommonResult.success(map);
+    }
+}

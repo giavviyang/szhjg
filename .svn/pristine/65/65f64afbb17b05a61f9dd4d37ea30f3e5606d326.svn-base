@@ -1,0 +1,254 @@
+package com.fudian.szhjg.busiservice.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.common.utils.SecurityUtils;
+import com.fudian.common.utils.uuid.IdUtils;
+import com.fudian.szhjg.busiservice.CheckTaskService;
+import com.fudian.szhjg.mapper.TChoujianTaskMapper;
+import com.fudian.szhjg.mapper.TTaskJuanMapper;
+import com.fudian.szhjg.pojo.*;
+import com.fudian.szhjg.pojo.vo.CheckVO;
+import com.fudian.szhjg.service.*;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+public class CheckTaskServiceImpl implements CheckTaskService {
+
+    @Autowired
+    private TProjectService projectService;
+    @Autowired
+    private TBatchService batchService;
+
+    @Autowired
+    private TTaskJuanService taskJuanService;
+    @Autowired
+    private TTaskJuanMapper taskJuanMapper;
+
+    @Autowired
+    private TChoujianTaskService choujianTaskService;
+    @Autowired
+    private TChoujianTaskMapper choujianTaskMapper;
+
+    @Autowired
+    private TGrgzltjService grgzltjService;
+
+
+
+    //抽检项目批次查询
+    @Override
+    public CommonResult completeProjectBatch() {
+        //创建一个集合
+        List<Object> arrayList = new ArrayList<>();
+        //查询项目
+        LambdaQueryWrapper<TProject> projectWrapper = new LambdaQueryWrapper<>();
+        projectWrapper.orderByDesc(TProject::getCreateTime);
+        List<TProject> projectList = projectService.list(projectWrapper);
+        for (TProject project : projectList){
+            String id = IdUtils.fastSimpleUUID();
+            Map<String,Object> mapP = new HashMap<>();
+            mapP.put("benId",id);
+            mapP.put("projectName",project.getProjectName());
+            //查询批次
+            LambdaQueryWrapper<TBatch> batchWrapper = new LambdaQueryWrapper<>();
+            batchWrapper.eq(TBatch::getProjectId,project.getId());
+            List<TBatch> batchList = batchService.list(batchWrapper);
+            List<Object> list = new ArrayList<>();
+            for (TBatch batch :batchList){
+                Map<String,Object> mapB = new HashMap<>();
+                mapB.put("benId",batch.getId());
+                mapB.put("shangId",id);
+                mapB.put("projectName",batch.getPcName());
+                list.add(mapB);
+            }
+            mapP.put("pcName",list);
+            if ( batchList.size()>0 ){
+                mapP.put("archives",batchList.get(0).getDalx());
+            }else {
+                mapP.put("archives","");
+            }
+            arrayList.add(mapP);
+        }
+        if ( arrayList.size()>0 ){
+            return CommonResult.success(arrayList);
+        }else {
+            return CommonResult.error(500, "未查询到相关项目的批次信息!");
+        }
+    }
+
+    //页面动态展示批次名称
+    @Override
+    public List<Object> queryBatchName() {
+        List<Object> list = new ArrayList<>();
+        LambdaQueryWrapper<TBatch> batchWrapper = new LambdaQueryWrapper<>();
+        batchWrapper.orderByAsc(TBatch::getCreateTime);
+        List<TBatch> batchList = batchService.list(batchWrapper);
+        for (TBatch batch : batchList){
+            Map<String, Object> map = new HashMap<>();
+            map.put("label" , batch.getPcName());
+            map.put("value" , batch.getId());
+            list.add(map);
+        }
+        return list;
+    }
+
+    //新增抽检之前查询条数
+    @Override
+    public CommonResult addSpotNumber(CheckVO checkVO) {
+        int length = taskJuanMapper.getLengthTask(checkVO.getPcId(),checkVO.getQzh(),checkVO.getMlh(),checkVO.getAjh2(),checkVO.getAjh3());
+        //抽取比例
+        Double scope = Double.valueOf(checkVO.getFileScope());
+        //抽取数量
+        int t = (int) (scope / 100 * length);
+        if (t < 1) {
+            t = 1;
+        }
+        String msg = "";
+        if ( length == 0){
+            msg = "本次查询总数为["+length+"], 生成抽检条数["+0+"].";
+        }else {
+            msg = "本次查询总数为["+length+"], 生成抽检条数["+t+"].";
+        }
+
+        return new CommonResult(200,msg);
+    }
+
+    //新增生成抽检
+    @Override
+    public CommonResult addSpotCheck(CheckVO checkVO) {
+        CommonResult commonResult = new CommonResult();
+        //获取当前的用户
+        String user = SecurityUtils.getLoginUser().getUser().getNickName();
+        //抽取比例
+        Double scope = Double.valueOf(checkVO.getFileScope());
+        //根据批次id获取其下案卷总数
+        int length = taskJuanMapper.getLengthTask(checkVO.getPcId(),checkVO.getQzh(),checkVO.getMlh(),checkVO.getAjh2(),checkVO.getAjh3());
+        //抽取数量
+        int t = (int) (scope / 100 * length);
+        if (t < 1) {
+            t = 1;
+        }
+        if (length == 0){
+            t = 0;
+        }
+        //查询当前批次下的已经抽取出来的数据并且在随机抽取中 过滤掉
+        LambdaQueryWrapper<TChoujianTask> juanWrapper = new LambdaQueryWrapper<>();
+        juanWrapper.eq(TChoujianTask::getPcId,checkVO.getPcId());
+        List<TChoujianTask> chouList = choujianTaskService.list(juanWrapper);
+        List<String> ajIds = chouList.stream().map(TChoujianTask::getAjId).collect(Collectors.toList());
+        List<TTaskJuan> taskList = null;
+        if ( ajIds.size()>0 ) {
+            //执行抽取
+            taskList = taskJuanMapper.randomExtraData(t,checkVO.getPcId(),checkVO.getQzh(), checkVO.getMlh(),checkVO.getAjh2(),checkVO.getAjh3(),ajIds);
+        }else {
+            taskList = taskJuanMapper.randomExtraData(t,checkVO.getPcId(),checkVO.getQzh(), checkVO.getMlh(),checkVO.getAjh2(),checkVO.getAjh3(),ajIds);
+        }
+        List<TChoujianTask> chouTaskList = new ArrayList<>();
+        for (TTaskJuan taskJuan: taskList){
+            TChoujianTask tChoujianTask = new TChoujianTask();
+            String id =IdUtils.simpleUUID();
+            tChoujianTask.setId(id);
+            tChoujianTask.setPcId(taskJuan.getPcId());
+            tChoujianTask.setAjId(taskJuan.getId());
+            tChoujianTask.setQzh(taskJuan.getQzh());
+            tChoujianTask.setAjh(taskJuan.getAjh());
+            tChoujianTask.setDh(taskJuan.getDh());
+            tChoujianTask.setCjrNx(user);
+            Date date = new Date();
+            tChoujianTask.setClaimTime(date);
+            //tChoujianTask.setFinishTime(date);
+            tChoujianTask.setTaskFlag("0");
+            chouTaskList.add(tChoujianTask);
+        }
+        boolean b = choujianTaskService.saveBatch(chouTaskList);
+        if (b){
+            commonResult.setCode(200);
+            commonResult.setMsg("抽检任务成功");
+        }else {
+            commonResult.setCode(500);
+            commonResult.setMsg("抽检任务失败");
+        }
+        return commonResult;
+    }
+
+    //档号抽检重名查询
+    @Override
+    public String checkNameDhCount(String dh) {
+        String flag = "false";
+        if (StringUtils.isNotBlank(dh)){
+            LambdaQueryWrapper<TChoujianTask> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(TChoujianTask::getDh,dh);
+            List<TChoujianTask> list = choujianTaskService.list(wrapper);
+            if ( list.size()>0 ){
+                flag = "true";
+            }
+        }
+        return flag;
+    }
+
+    //新增档号抽检
+    @Override
+    public CommonResult addDhCheck(String pcId, String qzh, String dh) {
+        String user = SecurityUtils.getLoginUser().getUser().getNickName();
+        CommonResult commonResult = new CommonResult();
+        LambdaQueryWrapper<TTaskJuan> taskWrapper = new LambdaQueryWrapper<>();
+        taskWrapper.eq(TTaskJuan::getPcId, pcId).eq(TTaskJuan::getDh, dh);
+        if (StringUtils.isNotBlank(qzh)){
+            taskWrapper.eq(TTaskJuan::getQzh, qzh);
+        }
+        List<TTaskJuan> list = taskJuanService.list(taskWrapper);
+        TTaskJuan taskJuan = new TTaskJuan();
+        if (list.size()>0){
+            taskJuan = list.get(0);
+        }else {
+            return new CommonResult(500,"未查询到相关信息");
+        }
+        if (!"已完成".equals(taskJuan.getRwzt())){
+            return new CommonResult(500,"当前案卷任务未完成,无法进行抽检");
+        }
+        TChoujianTask choujianTask = new TChoujianTask();
+        String id =IdUtils.simpleUUID();
+        choujianTask.setId(id);
+        choujianTask.setPcId(taskJuan.getPcId());
+        choujianTask.setAjId(taskJuan.getId());
+        choujianTask.setQzh(taskJuan.getQzh());
+        choujianTask.setAjh(taskJuan.getAjh());
+        choujianTask.setDh(taskJuan.getDh());
+        choujianTask.setCjrNx(user);
+        Date date = new Date();
+        choujianTask.setClaimTime(date);
+        //choujianTask.setFinishTime(date);
+        choujianTask.setTaskFlag("0");
+        int i = choujianTaskMapper.insert(choujianTask);
+        if ( i>0 ){
+            commonResult.setCode(200);
+            commonResult.setMsg("档号抽检成功");
+        }else {
+            commonResult.setCode(200);
+            commonResult.setMsg("档号抽检失败");
+        }
+        return commonResult;
+    }
+
+    //查询案卷工序记录
+    @Override
+    public CommonGridResult queryAJRecord(TGrgzltj tGrgzltj) {
+        LambdaQueryWrapper<TGrgzltj> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TGrgzltj::getAjId,tGrgzltj.getAjId());
+        wrapper.orderByAsc(TGrgzltj::getJggx,TGrgzltj::getClaimTime);
+        PageHelper.startPage(tGrgzltj.getPageNum(),tGrgzltj.getPageSize());
+        List<TGrgzltj> list = grgzltjService.list(wrapper);
+        Page page = (Page) list;
+        CommonGridResult commonGridResult = new CommonGridResult(tGrgzltj.getPageNum(), tGrgzltj.getPageSize(), page.getTotal(), list);
+        return commonGridResult;
+    }
+
+}

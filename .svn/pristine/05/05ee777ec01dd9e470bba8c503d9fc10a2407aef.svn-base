@@ -1,0 +1,146 @@
+// cover some element-ui styles
+
+.el-breadcrumb__inner,
+.el-breadcrumb__inner a {
+  font-weight: 400 !important;
+}
+
+.el-upload {
+  input[type="file"] {
+    display: none !important;
+  }
+}
+
+.el-upload__input {
+  display: none;
+}
+
+.cell {
+  .el-tag {
+    margin-right: 0px;
+  }
+}
+
+.small-padding {
+  .cell {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+}
+
+.fixed-width {
+  .el-button--mini {
+    padding: 7px 10px;
+    width: 60px;
+  }
+}
+
+.status-col {
+  .cell {
+    padding: 0 10px;
+    text-align: center;
+
+    .el-tag {
+      margin-right: 0px;
+    }
+  }
+}
+
+
+// refine element ui upload
+.upload-container {
+  .el-upload {
+    width: 100%;
+
+    .el-upload-dragger {
+      width: 100%;
+      height: 200px;
+    }
+  }
+}
+
+// dropdown
+.el-dropdown-menu {
+  a {
+    display: block
+  }
+}
+
+// fix date-picker ui bug in filter-item
+.el-range-editor.el-input__inner {
+  display: inline-flex !important;
+}
+
+// to fix el-date-picker css style
+.el-range-separator {
+  box-sizing: content-box;
+}
+
+.el-menu--collapse
+  > div
+  > .el-submenu
+  > .el-submenu__title
+  .el-submenu__icon-arrow {
+  display: none;
+}
+
+
+//弹框标题底部样式
+.dialog-style {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .el-dialog:not(.is-fullscreen) {
+    margin-top: 0 !important;
+  }
+
+  .el-dialog {
+    //margin-top: 0;
+    margin: 0 auto;
+    max-height: 95%;
+    min-height: 5%;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: auto;
+
+    & .el-dialog__header {
+      background: rgba(204, 204, 204, 0.18);
+      width: 100%;
+      padding: 10px;
+
+      .el-dialog__header btn {
+        top: 15px;
+      }
+
+      & .el-dialog__title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #333;
+        letter-spacing: 1px;
+        opacity: .8;
+      }
+    }
+
+    & .el-dialog__body {
+      padding: 10px 15px;
+      font-size: 12px;
+      min-height: 130px;
+      overflow: auto;
+      //overflow: scroll;
+      //background-color: red;
+    }
+
+    & .el-dialog__footer {
+      background: rgba(204, 204, 204, 0.18);
+      width: 100%;
+      padding: 10px;
+    }
+
+    & .el-button + .el-button {
+      margin-left: 6px;
+    }
+  }
+}

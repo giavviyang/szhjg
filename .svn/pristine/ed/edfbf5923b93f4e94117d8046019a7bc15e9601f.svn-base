@@ -1,0 +1,349 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fudian.szhjg.mapper.TChoujianMapper">
+  <resultMap id="BaseResultMap" type="com.fudian.szhjg.pojo.TChoujian">
+    <!--@mbg.generated-->
+    <!--@Table t_choujian-->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="project_id" jdbcType="VARCHAR" property="projectId" />
+    <result column="project_name" jdbcType="VARCHAR" property="projectName" />
+    <result column="pc_id" jdbcType="VARCHAR" property="pcId" />
+    <result column="dh" jdbcType="VARCHAR" property="dh" />
+    <result column="jh" jdbcType="VARCHAR" property="jh" />
+    <result column="ksys" jdbcType="VARCHAR" property="ksys" />
+    <result column="zzys" jdbcType="VARCHAR" property="zzys" />
+    <result column="ym" jdbcType="INTEGER" property="ym" />
+    <result column="ys" jdbcType="VARCHAR" property="ys" />
+    <result column="sfsy" jdbcType="VARCHAR" property="sfsy" />
+    <result column="tpdz" jdbcType="VARCHAR" property="tpdz" />
+    <result column="tpmc" jdbcType="VARCHAR" property="tpmc" />
+    <result column="zrz" jdbcType="VARCHAR" property="zrz" />
+    <result column="xcsj" jdbcType="VARCHAR" property="xcsj" />
+    <result column="mgsj" jdbcType="VARCHAR" property="mgsj" />
+    <result column="gjc" jdbcType="VARCHAR" property="gjc" />
+    <result column="fz" jdbcType="VARCHAR" property="fz" />
+    <result column="fjtm" jdbcType="VARCHAR" property="fjtm" />
+    <result column="flh" jdbcType="VARCHAR" property="flh" />
+    <result column="yz" jdbcType="VARCHAR" property="yz" />
+    <result column="kzbs" jdbcType="VARCHAR" property="kzbs" />
+    <result column="mj" jdbcType="VARCHAR" property="mj" />
+    <result column="dalx_id" jdbcType="VARCHAR" property="dalxId" />
+    <result column="create_by" jdbcType="VARCHAR" property="createBy" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_by" jdbcType="VARCHAR" property="updateBy" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+  </resultMap>
+  <resultMap extends="BaseResultMap" id="ResultMapWithBLOBs" type="com.fudian.szhjg.pojo.TChoujian">
+    <!--@mbg.generated-->
+    <!--@Table t_choujian-->
+    <result column="remark" jdbcType="LONGVARCHAR" property="remark" />
+    <result column="xgyj" jdbcType="LONGVARCHAR" property="xgyj" />
+    <result column="ztxt" jdbcType="LONGVARCHAR" property="ztxt" />
+    <result column="zqbs" jdbcType="LONGVARCHAR" property="zqbs" />
+    <result column="jdch" jdbcType="LONGVARCHAR" property="jdch" />
+    <result column="xgyjzl" jdbcType="LONGVARCHAR" property="xgyjzl" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="example.oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, project_id, project_name, pc_id, dh, jh, ksys, zzys, ym, ys, sfsy, tpdz, tpmc,
+    zrz, xcsj, mgsj, gjc, fz, fjtm, flh, yz, kzbs, mj, dalx_id, create_by, create_time,
+    update_by, update_time
+  </sql>
+  <sql id="Blob_Column_List">
+    <!--@mbg.generated-->
+    remark, xgyj, ztxt, zqbs, jdch, xgyjzl
+  </sql>
+  <select id="selectByExampleWithBLOBs" parameterType="com.fudian.szhjg.pojo.TChoujianExample" resultMap="ResultMapWithBLOBs">
+    <!--@mbg.generated-->
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    ,
+    <include refid="Blob_Column_List" />
+    from t_choujian
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <select id="selectByExample" parameterType="com.fudian.szhjg.pojo.TChoujianExample" resultMap="BaseResultMap">
+    <!--@mbg.generated-->
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    from t_choujian
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <delete id="deleteByExample" parameterType="com.fudian.szhjg.pojo.TChoujianExample">
+    <!--@mbg.generated-->
+    delete from t_choujian
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <select id="countByExample" parameterType="com.fudian.szhjg.pojo.TChoujianExample" resultType="java.lang.Long">
+    <!--@mbg.generated-->
+    select count(*) from t_choujian
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map">
+    <!--@mbg.generated-->
+    update t_choujian
+    <set>
+      <if test="record.id != null">
+        id = #{record.id,jdbcType=VARCHAR},
+      </if>
+      <if test="record.projectId != null">
+        project_id = #{record.projectId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.projectName != null">
+        project_name = #{record.projectName,jdbcType=VARCHAR},
+      </if>
+      <if test="record.pcId != null">
+        pc_id = #{record.pcId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.dh != null">
+        dh = #{record.dh,jdbcType=VARCHAR},
+      </if>
+      <if test="record.jh != null">
+        jh = #{record.jh,jdbcType=VARCHAR},
+      </if>
+      <if test="record.ksys != null">
+        ksys = #{record.ksys,jdbcType=VARCHAR},
+      </if>
+      <if test="record.zzys != null">
+        zzys = #{record.zzys,jdbcType=VARCHAR},
+      </if>
+      <if test="record.ym != null">
+        ym = #{record.ym,jdbcType=INTEGER},
+      </if>
+      <if test="record.ys != null">
+        ys = #{record.ys,jdbcType=VARCHAR},
+      </if>
+      <if test="record.sfsy != null">
+        sfsy = #{record.sfsy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.tpdz != null">
+        tpdz = #{record.tpdz,jdbcType=VARCHAR},
+      </if>
+      <if test="record.tpmc != null">
+        tpmc = #{record.tpmc,jdbcType=VARCHAR},
+      </if>
+      <if test="record.zrz != null">
+        zrz = #{record.zrz,jdbcType=VARCHAR},
+      </if>
+      <if test="record.xcsj != null">
+        xcsj = #{record.xcsj,jdbcType=VARCHAR},
+      </if>
+      <if test="record.mgsj != null">
+        mgsj = #{record.mgsj,jdbcType=VARCHAR},
+      </if>
+      <if test="record.gjc != null">
+        gjc = #{record.gjc,jdbcType=VARCHAR},
+      </if>
+      <if test="record.fz != null">
+        fz = #{record.fz,jdbcType=VARCHAR},
+      </if>
+      <if test="record.fjtm != null">
+        fjtm = #{record.fjtm,jdbcType=VARCHAR},
+      </if>
+      <if test="record.flh != null">
+        flh = #{record.flh,jdbcType=VARCHAR},
+      </if>
+      <if test="record.yz != null">
+        yz = #{record.yz,jdbcType=VARCHAR},
+      </if>
+      <if test="record.kzbs != null">
+        kzbs = #{record.kzbs,jdbcType=VARCHAR},
+      </if>
+      <if test="record.mj != null">
+        mj = #{record.mj,jdbcType=VARCHAR},
+      </if>
+      <if test="record.dalxId != null">
+        dalx_id = #{record.dalxId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.createBy != null">
+        create_by = #{record.createBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.createTime != null">
+        create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.updateBy != null">
+        update_by = #{record.updateBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.updateTime != null">
+        update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.remark != null">
+        remark = #{record.remark,jdbcType=LONGVARCHAR},
+      </if>
+      <if test="record.xgyj != null">
+        xgyj = #{record.xgyj,jdbcType=LONGVARCHAR},
+      </if>
+      <if test="record.ztxt != null">
+        ztxt = #{record.ztxt,jdbcType=LONGVARCHAR},
+      </if>
+      <if test="record.zqbs != null">
+        zqbs = #{record.zqbs,jdbcType=LONGVARCHAR},
+      </if>
+      <if test="record.jdch != null">
+        jdch = #{record.jdch,jdbcType=LONGVARCHAR},
+      </if>
+      <if test="record.xgyjzl != null">
+        xgyjzl = #{record.xgyjzl,jdbcType=LONGVARCHAR},
+      </if>
+    </set>
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExampleWithBLOBs" parameterType="map">
+    <!--@mbg.generated-->
+    update t_choujian
+    set id = #{record.id,jdbcType=VARCHAR},
+      project_id = #{record.projectId,jdbcType=VARCHAR},
+      project_name = #{record.projectName,jdbcType=VARCHAR},
+      pc_id = #{record.pcId,jdbcType=VARCHAR},
+      dh = #{record.dh,jdbcType=VARCHAR},
+      jh = #{record.jh,jdbcType=VARCHAR},
+      ksys = #{record.ksys,jdbcType=VARCHAR},
+      zzys = #{record.zzys,jdbcType=VARCHAR},
+      ym = #{record.ym,jdbcType=INTEGER},
+      ys = #{record.ys,jdbcType=VARCHAR},
+      sfsy = #{record.sfsy,jdbcType=VARCHAR},
+      tpdz = #{record.tpdz,jdbcType=VARCHAR},
+      tpmc = #{record.tpmc,jdbcType=VARCHAR},
+      zrz = #{record.zrz,jdbcType=VARCHAR},
+      xcsj = #{record.xcsj,jdbcType=VARCHAR},
+      mgsj = #{record.mgsj,jdbcType=VARCHAR},
+      gjc = #{record.gjc,jdbcType=VARCHAR},
+      fz = #{record.fz,jdbcType=VARCHAR},
+      fjtm = #{record.fjtm,jdbcType=VARCHAR},
+      flh = #{record.flh,jdbcType=VARCHAR},
+      yz = #{record.yz,jdbcType=VARCHAR},
+      kzbs = #{record.kzbs,jdbcType=VARCHAR},
+      mj = #{record.mj,jdbcType=VARCHAR},
+      dalx_id = #{record.dalxId,jdbcType=VARCHAR},
+      create_by = #{record.createBy,jdbcType=VARCHAR},
+      create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      update_by = #{record.updateBy,jdbcType=VARCHAR},
+      update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      remark = #{record.remark,jdbcType=LONGVARCHAR},
+      xgyj = #{record.xgyj,jdbcType=LONGVARCHAR},
+      ztxt = #{record.ztxt,jdbcType=LONGVARCHAR},
+      zqbs = #{record.zqbs,jdbcType=LONGVARCHAR},
+      jdch = #{record.jdch,jdbcType=LONGVARCHAR},
+      xgyjzl = #{record.xgyjzl,jdbcType=LONGVARCHAR}
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map">
+    <!--@mbg.generated-->
+    update t_choujian
+    set id = #{record.id,jdbcType=VARCHAR},
+      project_id = #{record.projectId,jdbcType=VARCHAR},
+      project_name = #{record.projectName,jdbcType=VARCHAR},
+      pc_id = #{record.pcId,jdbcType=VARCHAR},
+      dh = #{record.dh,jdbcType=VARCHAR},
+      jh = #{record.jh,jdbcType=VARCHAR},
+      ksys = #{record.ksys,jdbcType=VARCHAR},
+      zzys = #{record.zzys,jdbcType=VARCHAR},
+      ym = #{record.ym,jdbcType=INTEGER},
+      ys = #{record.ys,jdbcType=VARCHAR},
+      sfsy = #{record.sfsy,jdbcType=VARCHAR},
+      tpdz = #{record.tpdz,jdbcType=VARCHAR},
+      tpmc = #{record.tpmc,jdbcType=VARCHAR},
+      zrz = #{record.zrz,jdbcType=VARCHAR},
+      xcsj = #{record.xcsj,jdbcType=VARCHAR},
+      mgsj = #{record.mgsj,jdbcType=VARCHAR},
+      gjc = #{record.gjc,jdbcType=VARCHAR},
+      fz = #{record.fz,jdbcType=VARCHAR},
+      fjtm = #{record.fjtm,jdbcType=VARCHAR},
+      flh = #{record.flh,jdbcType=VARCHAR},
+      yz = #{record.yz,jdbcType=VARCHAR},
+      kzbs = #{record.kzbs,jdbcType=VARCHAR},
+      mj = #{record.mj,jdbcType=VARCHAR},
+      dalx_id = #{record.dalxId,jdbcType=VARCHAR},
+      create_by = #{record.createBy,jdbcType=VARCHAR},
+      create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      update_by = #{record.updateBy,jdbcType=VARCHAR},
+      update_time = #{record.updateTime,jdbcType=TIMESTAMP}
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+</mapper>

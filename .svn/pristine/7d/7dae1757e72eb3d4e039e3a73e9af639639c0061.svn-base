@@ -1,0 +1,500 @@
+<template>
+  <div class="dashboard-editor-container">
+    <div class="chart-wrapper">
+      <el-form :model="queryForm" ref="queryForm" size="small" :inline="true" style="margin-top:5px;margin-bottom:0;">
+        <el-form-item label="选择批次" prop="pcId">
+          <el-cascader v-model="queryForm.pcId" :options="projectOptions" :props="projectProps" clearable size="mini"
+                       filterable :show-all-levels="false"></el-cascader>
+        </el-form-item>
+        <el-form-item label="抽检人" prop="cjrNx">
+          <el-input v-model="queryForm.cjrNx" clearable style="width: 150px" class="rt-input" size="mini"
+                    @keyup.enter.native="batchSearch"/>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="el-icon-search" size="mini" @click="batchSearch">搜索</el-button>
+        </el-form-item>
+      </el-form>
+      <el-row :gutter="10" class="mb8">
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="el-icon-document-checked" size="mini" @click="viewFile">查看</el-button>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="el-icon-check" size="mini" @click="oneClickCompletion">一键完成
+          </el-button>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="el-icon-check" size="mini" @click="toHistory()">查看抽检历史</el-button>
+        </el-col>
+      </el-row>
+      <el-table row-key="id" :data="checkList" border width="100%" height="calc(100vh - 230px)" ref="checkTable"
+                slot="table"
+                @selection-change="checkSelectionChange" @row-click="checkRowClick" @select="checksSelect"
+                :row-style="checkClass">
+        <el-table-column type="selection" width="40"></el-table-column>
+        <el-table-column align="center" :index="checkGetIndex" type="index" label="序号" width="55"></el-table-column>
+        <el-table-column align="center" v-for="(item,index) in checkColumns" :formatter="item.formatter" :key="index"
+                         :label="item.label" :prop="item.prop" :v-if="checkColumns[index].isCol" :min-width="item.width"
+                         show-overflow-tooltip>
+        </el-table-column>
+        <el-table-column align="center" label="操作" width="120">
+          <template slot-scope="scope">
+            <el-button type="text" size="mini" @click="descriptionFile(scope.row)">完成抽检</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="page" style="margin-top: 5px;">
+        <el-pagination :page-sizes="[20, 30, 50, 100]" :page-size="pageSize" :current-page="pageNum" :total="total"
+                       layout="total, sizes, prev, pager, next, jumper" @size-change="pageSizeS" :pager-count="5"
+                       @current-change="pageCurrent"/>
+      </div>
+    </div>
+
+    <!--文件查看-->
+    <CheckLists v-if="dialogFormVisible1" ref="CheckLists"></CheckLists>
+
+    <!--    查看抽检历史-->
+    <History ref="history" @HistoryCloseData="HistoryCloseData"/>
+  </div>
+</template>
+
+<script>
+import {completeProjectBatch} from "@/api/szhjg/check/spotCheckTask";
+import {completeClickList, completeSpotCheck, queryRandomCase, querySamplingPeople} from "@/api/szhjg/check/spotCheck";
+import CheckLists from '../spotCheck/CheckLists/index';
+import History from "../spotCheck/History/index";
+import {Message} from "element-ui";
+
+
+const params = {
+  pageNum: 1,
+  pageSize: 20
+}
+export default {
+  name: "index",
+  components: {CheckLists, History},
+  data() {
+    return {
+      dialogFormVisible1: false,
+      // 遮罩层
+      loading: true,
+      total: 0,
+      pageNum: 1,
+      pageSize: 20,
+
+      /* 搜索 */
+      queryForm: {
+        pcId: [],
+        cjrNx: '',
+      },
+      projectOptions: [],
+      projectProps: {label: 'projectName', value: 'benId', children: 'pcName'},
+
+      //复选框选中
+      checkGridCheck: [],
+
+      //任务列表
+      checkList: [],
+      //任务表头
+      checkColumns: [
+        {label: '抽检人', prop: 'cjr', width: '80', formatter: this.SamplingOptions},
+        {label: '档案类型', prop: 'dalx', isCol: true , width: '100'},
+        {label: '全宗号', prop: 'qzh', isCol: true, width: '80'},
+        {label: '目录号', prop: 'mlh', isCol: true, width: '80'},
+        {label: '案卷号', prop: 'ajh', isCol: true, width: '80'},
+        /*{label: '起始时间', prop: 'qssj', isCol: true},*/
+        /*{label: '终止时间', prop: 'zzsj', isCol: true},*/
+        {label: '起止年月', prop: 'startEndDate', isCol: true, width: '150'},
+        {label: '保管期限', prop: 'bgqx', isCol: true, width: '80'},
+        {label: '年度', prop: 'nd', isCol: true, width: '80'},
+        {label: '附注', prop: 'fz', isCol: true, width: '150'},
+        {label: '备考表说明', prop: 'bkbsm', isCol: true, width: '200'},
+        {label: '档号区间', prop: 'dh', isCol: true, width: '190'},
+        {label: '姓名', prop: 'xm', isCol: true, width: '80'},
+        {label: '性别', prop: 'xb', isCol: true, width: '50'},
+        {label: '证件类型', prop: 'zjlx', isCol: true, width: '100'},
+        {label: '证件号码', prop: 'zjhm', isCol: true, width: '160'},
+        {label: '案卷总件数', prop: 'fileCount', isCol: true, width: '100'},
+      ],
+
+      optionsSamplingPeople: [],
+
+    }
+  },
+
+  mounted() {
+    this.queryList(params);
+  },
+  created() {
+    this.queryOptions();
+    this.samplingPeopleList();
+  },
+  methods: {
+    //查询项目批次
+    queryOptions() {
+      completeProjectBatch().then((res) => {
+        this.projectOptions = res.data;
+      })
+    },
+    //上部搜索
+    batchSearch() {
+      this.pageNum = 1;
+      let params = {
+        pageNum: 1,
+        pageSize: 20,
+        pcId: this.queryForm.pcId[1],
+        cjrNx: this.queryForm.cjrNx,
+      }
+      this.queryList(params)
+    },
+    //分页
+    pageCurrent(val) {
+      this.pageNum = val
+      params.pageNum = val
+      params.pageSize = this.pageSize;
+      params.pcId = this.queryForm.pcId[1];
+      params.cjrNx = this.queryForm.cjrNx;
+      this.queryList(params)
+    },
+    pageSizeS(val) {
+      this.pageSize = val
+      params.pageSize = val;
+      params.pageNum = this.pageNum;
+      params.pcId = this.queryForm.pcId[1];
+      params.cjrNx = this.queryForm.cjrNx;
+      this.queryList(params)
+    },
+    //查询数据展示页面
+    queryList(params) {
+      const _this = this;
+      queryRandomCase(params, {emulateJSON: true})
+        .then(function (response) {
+          _this.checkList = response.rows
+          _this.total = response.total
+          _this.loading = false
+        })
+    },
+
+    //查询抽检人
+    samplingPeopleList() {
+      querySamplingPeople().then(res => {
+        this.optionsSamplingPeople = res.map((item) => {
+          return item;
+        });
+      })
+    },
+    SamplingOptions(row, column, cellValue) {
+      let result;
+      cellValue = row.id;
+      const arr = this.optionsSamplingPeople;
+      for (var i in arr) {
+        if (cellValue == arr[i].value) {
+          result = arr[i].label;
+        }
+      }
+      return result;
+    },
+
+    // 复选框事件
+    checkSelectionChange(val) {
+      this.checkGridCheck = val;
+    },
+    // 行点击事件
+    checkRowClick(row, column, event) {
+      this.$refs.checkTable.clearSelection();
+      if (this.checkGridCheck.length === 0) {
+        this.$refs.checkTable.toggleRowSelection(row)
+        return;
+      }
+      this.$refs.checkTable.toggleRowSelection(row)
+    },
+    async checksSelect(selection, row) {
+      //执行完清空操作在进行下面的勾选
+      await this.$refs.checkTable.clearSelection();
+      if (selection.length === 0) return;
+      this.$refs.checkTable.toggleRowSelection(row, true);
+    },
+    checkClass({row, rowIndex}) {
+      if (this.checkGridCheck.includes(row)) {
+        return {
+          "background": "#b9deff !important", "color": "blue",
+        }
+      } else {
+        return {
+          "——tablebackground": "#F5F7FA",
+        }
+      }
+    },
+    //翻页后序号连贯
+    checkGetIndex($index) {
+      return (this.pageNum - 1) * this.pageSize + $index + 1;
+    },
+
+    //查看文件/图片
+    viewFile() {
+      if (this.checkGridCheck.length == 1) {
+        this.dialogFormVisible1 = true;
+        let id = this.checkGridCheck[0].id;
+        let dalx = this.checkGridCheck[0].dalx;
+        this.$nextTick(() => {
+          this.$refs.CheckLists.init(id,dalx);
+        });
+      } else {
+        Message.warning("请选择一条数据!");
+      }
+    },
+
+    //完成抽检
+    descriptionFile(val) {
+      const _this = this;
+      let id = val.id;
+      completeSpotCheck({id: id}).then((res) => {
+        if (res.code == "200") {
+          _this.completeList();
+          _this.$message({message: "当前案卷抽检完成", type: 'success'})
+        } else {
+          this.$message({message: "系统异常，请联系管理员", type: 'error'});
+        }
+      })
+    },
+    //一键完成
+    oneClickCompletion() {
+      const _this = this;
+      if (this.checkGridCheck.length == 1) {
+        completeSpotCheck({id: this.checkGridCheck[0].id}).then((res) => {
+          if (res.code == "200") {
+            _this.completeList();
+            _this.$message({message: "当前案卷抽检完成", type: 'success'})
+          } else {
+            this.$message({message: "系统异常，请联系管理员", type: 'error'});
+          }
+        })
+      } else {
+        this.$confirm('您没有选择记录,是否一键完成所有?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          completeClickList().then((res) => {
+            if (res.code == "200") {
+              _this.completeList();
+              _this.$message({message: "案卷抽检一键完成成功", type: 'success'})
+            } else {
+              this.$message({message: "系统异常，请联系管理员", type: 'error'});
+            }
+          })
+        }).catch(() => {
+        });
+      }
+    },
+    // 查看抽检历史
+    toHistory() {
+      this.$refs.history.dialogFormVisible = true
+      this.$refs.history.queryForm = {
+        pcId: '',
+        qzh: '',
+        ajh: '',
+        pageNum: 1,
+        pageSize: 20,
+      },
+        this.$refs.history.getHistory()
+      this.$refs.history.queryOptions()
+      this.$refs.history.samplingTimeList()
+    },
+    //关闭页面弹窗重新刷新
+    HistoryCloseData(val) {
+      this.completeList();
+    },
+    //操作之后查询
+    completeList() {
+      let params = {
+        pageNum: 1,
+        pageSize: 20,
+        pcId: this.queryForm.pcId[1],
+        cjrNx: this.queryForm.cjrNx,
+      }
+      this.queryList(params)
+    }
+
+
+  },
+}
+</script>
+
+<style scoped lang="scss">
+.dashboard-editor-container {
+  padding: 10px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+
+  .github-corner {
+    position: absolute;
+    top: 0;
+    border: 0;
+    right: 0;
+  }
+
+  .chart-wrapper {
+    width: 100%;
+    height: calc(100% - 100px);
+  }
+}
+
+.el-form-item--small.el-form-item {
+  margin-bottom: 5px;
+}
+
+::v-deep .el-cascader .el-input .el-input__inner {
+  width: 200px;
+  height: 28px;
+  line-height: 28px;
+}
+
+::v-deep .el-table {
+  border-right: 1px solid #dfe6ec;
+  color: #515a6e;
+
+  & > .el-table__header-wrapper {
+    & > table {
+      tr:first-of-type {
+        th {
+          background: rgba(204, 204, 204, 0.18);
+          color: #515a6e;
+          font-size: 12px;
+          //text-align: center;
+          height: 34px !important;
+          padding: 5px 0 !important;
+        }
+      }
+
+      tr:nth-of-type(2) {
+        th {
+          background: #fff;
+          //background: rgba(204, 204, 204, 0.05);
+          color: #515a6e;
+          font-size: 12px;
+          text-align: center;
+          padding: 0 !important;
+          height: 34px;
+
+          .el-input__inner {
+            border: none;
+            padding: 0;
+            height: 20px;
+          }
+        }
+      }
+
+      & > colgroup {
+        col {
+          &:last-of-type {
+            width: 17px !important;
+          }
+        }
+      }
+    }
+  }
+
+  .el-table__body-wrapper {
+    overflow: auto !important;
+    //border-right: 1px solid #dfe6ec;
+    //width: calc(100% - 1px);
+    .el-table__row {
+      td {
+        text-align: center;
+        font-size: 12px;
+        padding: 5px 0 !important;
+
+        &:last-child {
+          .cell {
+            display: flex;
+            //margin: 0 5px;
+            //flex-direction: column;
+            justify-content: space-around;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            //padding: 0;
+            .el-button {
+              width: 100%;
+              height: 100%;
+              position: relative;
+              top: 0;
+              right: 0;
+              //padding: 0;
+              margin: 0 2px;
+              //span{
+              //  display: inline-block;
+              //  height: 100%;
+              //}
+            }
+          }
+        }
+      }
+    }
+  }
+
+  //滚动条
+  /**滚动条的宽度*/
+  ::-webkit-scrollbar {
+    width: 10px !important; /*竖向*/
+    height: 10px !important; /*横向*/
+  }
+
+  /*滚动条的滑块*/
+  ::-webkit-scrollbar-thumb {
+    background-color: #ddd !important;
+    border-radius: 8px !important;
+  }
+}
+
+.page {
+  float: right;
+  height: 38px;
+  text-align: right;
+
+  ::v-deep .el-pagination {
+    height: 28px;
+    //position: relative;
+    //margin-top: 5px;
+    font-size: 12px;
+
+    & > .el-pagination__total {
+      font-size: 12px;
+    }
+
+    & > .el-pagination__sizes {
+      .el-input {
+        input {
+          font-size: 12px;
+          height: 26px;
+        }
+      }
+    }
+
+    button {
+      background-color: transparent;
+    }
+
+    & > .el-pager {
+      li {
+        font-size: 12px;
+        background-color: transparent;
+      }
+    }
+
+    & > .el-pagination__jump {
+      font-size: 12px;
+
+      .el-input {
+        input {
+          font-size: 12px;
+          height: 26px;
+        }
+      }
+    }
+  }
+}
+
+</style>

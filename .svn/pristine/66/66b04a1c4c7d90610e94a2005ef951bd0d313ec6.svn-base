@@ -1,0 +1,20 @@
+import request from "@/utils/request";
+
+//数据加工 -- 图像处理
+//查询任务列表(案卷)
+export function queryTxclTaskList(params) {
+  return request({
+    url: '/sjjg/txcl/queryTxclTaskList',
+    method: 'get',
+    params: params
+  })
+}
+
+//图片上传
+export function  uploadEditImg(data){
+  return request({
+    url: '/sjjg/txcl/viewPictureImage',
+    method: 'post',
+    data: data
+  })
+}

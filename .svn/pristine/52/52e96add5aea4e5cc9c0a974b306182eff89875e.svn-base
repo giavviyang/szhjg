@@ -1,0 +1,397 @@
+package com.fudian.szhjg.controller;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.common.utils.SecurityUtils;
+import com.fudian.common.utils.uuid.IdUtils;
+import com.fudian.szhjg.busiservice.MetadataMapperService;
+import com.fudian.szhjg.mapper.TMapperDalxMapper;
+import com.fudian.szhjg.mapper.TMapperMapper;
+import com.fudian.szhjg.mapper.TMapperOptionMapper;
+import com.fudian.szhjg.mapper.TMetadataMapper;
+import com.fudian.szhjg.pojo.TMapper;
+import com.fudian.szhjg.pojo.TMapperDalx;
+import com.fudian.szhjg.pojo.TMapperOption;
+import com.fudian.szhjg.pojo.TMetadata;
+import com.fudian.szhjg.pojo.vo.TmapperVO;
+import com.fudian.szhjg.pojo.vo.TmetadataVO;
+import com.fudian.szhjg.service.TMapperDalxService;
+import com.fudian.szhjg.service.TMapperOptionService;
+import com.fudian.szhjg.service.TMapperService;
+import com.fudian.szhjg.service.TMetadataService;
+import com.fudian.szhjg.templateMode.CommonTemplate;
+import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
+import java.util.List;
+
+
+@Api(tags = "A43  业务管理-元数据和字段管理")
+@RestController
+@RequestMapping("/ywgl/metamapper")
+public class MetadataMapperController {
+
+    @Autowired
+    private MetadataMapperService metadataMapperService;
+
+    //字段元数据表
+    @Autowired
+    private TMetadataMapper metadataMapper;
+    @Autowired
+    private TMetadataService metadataService;
+
+    //档案类型对应元数据字段设置表
+    @Autowired
+    private TMapperMapper mapperMapper;
+    @Autowired
+    private TMapperService mapperService;
+
+    //存放档案类型下模板
+    @Autowired
+    private TMapperDalxMapper mapperDalxMapper;
+    @Autowired
+    private TMapperDalxService mapperDalxService;
+
+    //元数据字段存放下拉框表
+    @Autowired
+    private TMapperOptionMapper mapperOptionMapper;
+    @Autowired
+    private TMapperOptionService mapperOptionService;
+
+
+
+    @ApiOperation("元数据和字段管理--查询元数据字段类型")
+    @ApiOperationSupport(order = 1)
+    @GetMapping("/queryMetadataType")
+    public List<Object> queryMetadataType(){
+        return metadataMapperService.queryMetadataType();
+    }
+
+    @ApiOperation("数据字段管理--查询正则表达式列表")
+    @ApiOperationSupport(order = 2)
+    @GetMapping("/queryRegularExpressionList")
+    public List<Object> queryRegularExpressionList(){
+        return metadataMapperService.queryRegularExpressionList();
+    }
+
+
+
+    @ApiOperation("元数据管理--查询元数据列表")
+    @ApiOperationSupport(order = 11)
+    @GetMapping("/queryYuanList")
+    @ResponseBody
+    public CommonGridResult queryYuanList(TMetadata metadata){
+        CommonTemplate commonTemplate = new CommonTemplate(metadata,metadataService,metadataMapper);
+        LambdaQueryWrapper<TMetadata> metaWrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(metadata.getMetadataName())){
+            metaWrapper.like(TMetadata::getMetadataName,metadata.getMetadataName()).or().like(TMetadata::getMetadataChinese,metadata.getMetadataName());
+        }
+        metaWrapper.orderByDesc(TMetadata::getCreateTime);
+        CommonGridResult commonGridResult = commonTemplate.list(metaWrapper);
+        return commonGridResult;
+    }
+
+    @ApiOperation("元数据管理--元数据重名查询")
+    @ApiOperationSupport(order = 12)
+    @GetMapping("/queryDoubleName")
+    public ResponseEntity queryDoubleName(String type, String name, String id){
+        String flag = metadataMapperService.queryDoubleName(type,name,id);
+        return ResponseEntity.ok(CommonResult.success(flag));
+    }
+
+    @ApiOperation("元数据管理--新增元数据")
+    @ApiOperationSupport(order = 13)
+    @PostMapping("/addYuanOne")
+    @ResponseBody
+    public CommonResult addYuanOne(@Validated @RequestBody TMetadata metadata){
+        //String id = IdUtils.simpleUUID();                 //获取uuid
+        //String id = String.valueOf(IdWorker.getId());
+        String id =  IdWorker.getIdStr();                   //雪花算法生成id
+        String name = SecurityUtils.getLoginUser().getUser().getNickName();  //获取用户
+        //赋值
+        metadata.setId(id);
+        metadata.setCreateBy(name);
+        metadata.setCreateTime(new Date());
+        //保存
+        CommonTemplate commonTemplate = new CommonTemplate(metadata,metadataService,metadataMapper);
+        CommonResult commonResult = commonTemplate.insert();
+        return commonResult;
+    }
+
+    @ApiOperation("元数据管理--编辑元数据")
+    @ApiOperationSupport(order = 14)
+    @PostMapping("/updateYuanOne")
+    @ResponseBody
+    public CommonResult updateYuanOne(@Validated @RequestBody TMetadata metadata){
+        String name = SecurityUtils.getLoginUser().getUser().getNickName();  //获取用户
+        metadata.setUpdateBy(name);
+        metadata.setUpdateTime(new Date());
+        CommonTemplate commonTemplate = new CommonTemplate(metadata,metadataService,metadataMapper);
+        CommonResult commonResult = commonTemplate.update();
+        return commonResult;
+    }
+
+    @ApiOperation("元数据管理--删除元数据")
+    @ApiOperationSupport(order = 15)
+    @DeleteMapping("/deleteYuanId/{id}")
+    @ResponseBody
+    public CommonResult deleteYuanId(@PathVariable("id") String id){
+        TMetadata tMetadata = new TMetadata();
+        CommonTemplate commonTemplate = new CommonTemplate(tMetadata,metadataService,mapperMapper);
+        CommonResult commonResult = commonTemplate.delete(id);
+        return commonResult;
+    }
+
+
+
+
+    @ApiOperation("字段管理--查询左侧树信息")
+    @ApiOperationSupport(order = 21)
+    @GetMapping("/queryFilesTreeList")
+    public CommonResult queryFilesTreeList(){
+        return metadataMapperService.queryFilesTreeList();
+    }
+
+    @ApiOperation("字段管理--查询模板列表")
+    @ApiOperationSupport(order = 22)
+    @GetMapping("/queryTemplateList")
+    @ResponseBody
+    public CommonGridResult queryTemplateList(TMapperDalx tMapperDalx){
+        CommonTemplate commonTemplate = new CommonTemplate(tMapperDalx,mapperDalxService,mapperDalxMapper);
+        LambdaQueryWrapper<TMapperDalx> wrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(tMapperDalx.getDaId())){
+            wrapper.eq(TMapperDalx::getDaId,tMapperDalx.getDaId());
+        }
+        wrapper.orderByAsc(TMapperDalx::getDaId,TMapperDalx::getPoints);
+        CommonGridResult commonGridResult = commonTemplate.list(wrapper);
+        return commonGridResult;
+    }
+
+    @ApiOperation("字段管理--查询字段列表")
+    @ApiOperationSupport(order = 23)
+    @GetMapping("/queryFieldsList")
+    @ResponseBody
+    public CommonGridResult queryFieldsList(String id, String type){
+        LambdaQueryWrapper<TMapper> mapperWrapper = new LambdaQueryWrapper<>();
+        mapperWrapper.eq(TMapper::getDaId,id).eq(TMapper::getPoints,type);
+        mapperWrapper.orderByAsc(TMapper::getSort);
+        List<TMapper> list = mapperService.list(mapperWrapper);
+        CommonGridResult commonGridResult = new CommonGridResult(list.size(),list);
+        return commonGridResult;
+    }
+
+    @ApiOperation("字段管理--查询档案类型名称")
+    @ApiOperationSupport(order = 24)
+    @GetMapping("/queryFilesType")
+    public CommonResult queryFilesType(){
+        return metadataMapperService.queryFilesType();
+    }
+
+    @ApiOperation("字段管理--档案类型和级别重名查询和新增")
+    @ApiOperationSupport(order = 25)
+    @GetMapping("/queryFileAndLevelSame")
+    public CommonResult queryFileAndLevelSame(String daId, String points){
+        return metadataMapperService.queryFileAndLevelSame(daId,points);
+    }
+
+    @ApiOperation("字段管理--删除档案类型和级别")
+    @ApiOperationSupport(order = 26)
+    @DeleteMapping("/deleteFileAndLevelSame/{id}")
+    public CommonResult deleteFileAndLevelSame(@PathVariable("id") String id){
+        CommonResult commonResult = metadataMapperService.deleteFileAndLevelSame(id);
+        return commonResult;
+    }
+
+    @ApiOperation("字段管理--查询实体类字段")
+    @ApiOperationSupport(order = 27)
+    @GetMapping("/queryEntityClass")
+    @ResponseBody
+    public CommonGridResult queryEntityClass(String type){
+        return metadataMapperService.queryEntityClass(type);
+    }
+
+    @ApiOperation("字段管理--查询元数据字段")
+    @ApiOperationSupport(order = 28)
+    @GetMapping("/queryMetadataFields")
+    @ResponseBody
+    public CommonGridResult queryMetadataFields(){
+        return metadataMapperService.queryMetadataFields();
+    }
+
+    @ApiOperation("字段管理--新增档案级别对应元数据")
+    @ApiOperationSupport(order = 29)
+    @PostMapping("/addMetadataFileLevel")
+    @ResponseBody
+    public CommonResult addMetadataFileLevel(@Validated @RequestBody TmetadataVO tmetadataVO){
+        return metadataMapperService.addMetadataFileLevel(tmetadataVO);
+    }
+
+
+    @ApiOperation("字段管理--规则设置查询全部字段")
+    @ApiOperationSupport(order = 30)
+    @GetMapping("/querySortfieldList")
+    @ResponseBody
+    public CommonResult querySortfieldList(String daId, String points){
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,points);
+        wrapper.orderByAsc(TMapper::getSort);
+        List<TMapper> list = mapperService.list(wrapper);
+        return CommonResult.success(list);
+    }
+
+    @ApiOperation("字段管理--规则设置查询指定字段")
+    @ApiOperationSupport(order = 31)
+    @GetMapping("/querySortAppoint")
+    @ResponseBody
+    public CommonResult querySortAppoint(String daId, String points, String appoint){
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,daId).eq(TMapper::getPoints,points);
+        if ("show".equals(appoint)){
+            wrapper.eq(TMapper::getDisplaySet,"1").orderByAsc(TMapper::getDisplaySort);
+        }else if ("enter".equals(appoint)){
+            wrapper.eq(TMapper::getEnterSet,"1").orderByAsc(TMapper::getEnterSort);
+        }else if ("input".equals(appoint)){
+            wrapper.eq(TMapper::getDescriptionSet,"1").orderByAsc(TMapper::getEnterSort);
+        }
+        List<TMapper> list = mapperService.list(wrapper);
+        return CommonResult.success(list);
+    }
+
+    @ApiOperation("字段管理--规则设置保存展示字段")
+    @ApiOperationSupport(order = 32)
+    @PostMapping("/saveOrDisplayField")
+    @ResponseBody
+    public CommonResult saveOrDisplayField(@RequestBody List<TmapperVO> list){
+        return metadataMapperService.saveOrDisplayField(list);
+    }
+
+    @ApiOperation("字段管理--规则设置保存任务录入字段")
+    @ApiOperationSupport(order = 33)
+    @PostMapping("/saveOrInputField")
+    @ResponseBody
+    public CommonResult saveOrInputField(@RequestBody List<TmapperVO> list){
+        return metadataMapperService.saveOrInputField(list);
+    }
+
+    @ApiOperation("字段管理--规则设置保存著录录入字段")
+    @ApiOperationSupport(order = 34)
+    @PostMapping("/descOrInputField")
+    @ResponseBody
+    public CommonResult descOrInputField(@RequestBody List<TmapperVO> list){
+        return metadataMapperService.descOrInputField(list);
+    }
+
+    @ApiOperation("字段管理--规则设置字段无值设置")
+    @ApiOperationSupport(order = 35)
+    @GetMapping("/queryNoFixField")
+    @ResponseBody
+    public CommonResult queryNoFixField(String daId, String points, String king){
+        return metadataMapperService.queryNoFixField(daId,points,king);
+    }
+
+    @ApiOperation("字段管理--查询编号字段是否存在")
+    @ApiOperationSupport(order = 36)
+    @GetMapping("/queryNumberOne")
+    public ResponseEntity queryNumberOne(String daId, String points){
+        String flag = metadataMapperService.queryNumberOne(daId,points);
+        return ResponseEntity.ok(CommonResult.success(flag));
+    }
+
+    @ApiOperation("字段管理--查询编号组成字段")
+    @ApiOperationSupport(order = 37)
+    @GetMapping("/queryNumberFieldList")
+    @ResponseBody
+    public CommonGridResult queryNumberFieldList(String daId, String points, String nameId){
+        return metadataMapperService.queryNumberFieldList(daId,points,nameId);
+    }
+
+    @ApiOperation("字段管理--查询编号组成字段是否存在")
+    @ApiOperationSupport(order = 38)
+    @GetMapping("/queryExampleFieldExists")
+    @ResponseBody
+    public CommonGridResult queryExampleFieldExists(String daId, String points){
+        return metadataMapperService.queryExampleFieldExists(daId,points);
+    }
+
+    @ApiOperation("字段管理--新增编号数据")
+    @ApiOperationSupport(order = 39)
+    @PostMapping("/addNumberingField")
+    @ResponseBody
+    public CommonResult addNumberingField(@Validated @RequestBody TmetadataVO tmetadataVO){
+        return metadataMapperService.addNumberingField(tmetadataVO);
+    }
+
+
+
+    @ApiOperation("字段下拉框管理--查询数据列表")
+    @ApiOperationSupport(order = 41)
+    @GetMapping("/queryDropDownList")
+    @ResponseBody
+    public CommonGridResult queryDropDownList(TMapperOption tMapperOption){
+        CommonTemplate commonTemplate = new CommonTemplate(tMapperOption,mapperOptionService,mapperOptionMapper);
+        LambdaQueryWrapper<TMapperOption> optionWrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(tMapperOption.getMetadataName())){
+            optionWrapper.like(TMapperOption::getMetadataName,tMapperOption.getMetadataName());
+        }
+        optionWrapper.eq(TMapperOption::getType,"C");
+        optionWrapper.orderByDesc(TMapperOption::getCreateTime,TMapperOption::getMetadataName).orderByAsc(TMapperOption::getDictSort);
+        CommonGridResult commonGridResult = commonTemplate.list(optionWrapper);
+        return commonGridResult;
+    }
+
+    @ApiOperation("字段下拉框管理--查询全部元数据名称")
+    @ApiOperationSupport(order = 42)
+    @GetMapping("/queryChooseFields1")
+    public List<Object> queryChooseFields1() {
+        return metadataMapperService.queryChooseFields1();
+    }
+
+    @ApiOperation("字段下拉框管理--查询指定元数据名称")
+    @ApiOperationSupport(order = 43)
+    @GetMapping("/queryChooseFields2")
+    public List<Object> queryChooseFields2() {
+        return metadataMapperService.queryChooseFields2();
+    }
+
+    @ApiOperation("字段下拉框管理--保存添加下拉框数据")
+    @ApiOperationSupport(order = 44)
+    @PostMapping("/addChooseFields")
+    @ResponseBody
+    public CommonResult addChooseFields(@Validated @RequestBody TMapperOption tMapperOption){
+        return metadataMapperService.addChooseFields(tMapperOption);
+    }
+
+    @ApiOperation("字段下拉框管理--根据名称查询下拉框数据")
+    @ApiOperationSupport(order = 45)
+    @GetMapping("/queryFromDropList")
+    @ResponseBody
+    public CommonGridResult queryFromDropList(String metadataName){
+        TMapperOption tMapperOption = new TMapperOption();
+        CommonTemplate commonTemplate = new CommonTemplate(tMapperOption,mapperOptionService,mapperOptionMapper);
+        LambdaQueryWrapper<TMapperOption> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapperOption::getMetadataName,metadataName).eq(TMapperOption::getType,"C");
+        wrapper.orderByAsc(TMapperOption::getDictSort);
+        CommonGridResult commonGridResult = commonTemplate.list2(wrapper);
+        return commonGridResult;
+
+    }
+
+    @ApiOperation("字段下拉框管理--批量删除数据")
+    @ApiOperationSupport(order = 46)
+    @PostMapping("/deleteChooseFields/{ids}")
+    @ResponseBody
+    public CommonResult deleteChooseFields(@PathVariable String[] ids) {
+        return metadataMapperService.deleteChooseFields(ids);
+    }
+
+
+}

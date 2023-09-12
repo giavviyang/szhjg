@@ -1,0 +1,104 @@
+<template>
+  <div class="management">
+    <el-card class="box-card">
+      <el-tabs v-model="activeName" @tab-click="handleClick" style="height: 100%">
+        <el-tab-pane label="进行中项目" name="0" style="height: 100%">
+          <InProgress :ProjectList="DoingList"/>
+        </el-tab-pane>
+        <el-tab-pane label="已完成项目" name="1">
+          <complete @handleChange="handleChange" :ProjectList="FinishList"/>
+        </el-tab-pane>
+      </el-tabs>
+    </el-card>
+  </div>
+</template>
+
+<script>
+import InProgress from '../../../components/xmgl/InProgress'
+import complete from "@/views/components/xmgl/complete";
+import {getProject} from "@/api/szhjg/xmpcgl/xmgl";
+
+export default {
+  name: "Index",
+  components: {InProgress, complete},
+  data() {
+    return {
+      activeName: '0',
+      pageNum: 1,
+      pageSize: 20,
+      DoingList: {},
+      FinishList: {},
+    };
+  },
+  mounted() {
+    this.getDoingList(this.activeName,this.pageNum,this.pageSize)
+  },
+  methods: {
+    getDoingList(isfinished,pageNum,pageSize) {
+      getProject({isfinished,pageNum,pageSize}).then((res) => {
+        if(res.code==200){
+          this.DoingList = res
+        }
+      })
+    },
+    getfinish(isfinished,pageNum,pageSize) {
+      getProject({isfinished,pageNum,pageSize}).then((res) => {
+        if(res.code==200){
+          this.FinishList = res
+        }
+      })
+    },
+    handleChange(pageSize,pageNum){
+      this.getfinish(this.activeName,pageNum,pageSize)
+    },
+    handleClick(tab, event) {
+      if(tab.index == 0){
+        this.getDoingList(tab.index,this.pageNum,this.pageSize)
+      }if(tab.index == 1){
+        this.getfinish(tab.index,this.pageNum,this.pageSize)
+      }
+    }
+  }
+};
+</script>
+
+<style scoped lang="scss">
+.management {
+  padding: 5px;
+  width: 100%;
+  height: 100%;
+  background: #F2F1F6;
+
+  ::v-deep .el-card__body {
+    padding: 0 20px 20px 20px;
+  }
+
+  ::v-deep .el-tabs__content {
+    height: calc(100% - 55px);
+  }
+
+  ::v-deep .el-card.is-always-shadow {
+    height: 100%;
+  }
+
+  ::v-deep .el-card__body {
+    height: 100%;
+  }
+
+  ::v-deep .el-tab-pane {
+    height: 100%;
+  }
+
+  //滚动条
+  /**滚动条的宽度*/
+  ::-webkit-scrollbar {
+    width: 10px !important; /*竖向*/
+    height: 10px !important; /*横向*/
+  }
+  /*滚动条的滑块*/
+  ::-webkit-scrollbar-thumb {
+    background-color: #ddd !important;
+    border-radius: 8px !important;
+  }
+}
+</style>

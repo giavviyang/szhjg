@@ -1,0 +1,326 @@
+package com.fudian.szhjg.busiservice.impl;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.szhjg.busiservice.DynamicDisplayService;
+import com.fudian.szhjg.mapper.TMapperMapper;
+import com.fudian.szhjg.mapper.TMapperOptionMapper;
+import com.fudian.szhjg.pojo.TBatch;
+import com.fudian.szhjg.pojo.TMapper;
+import com.fudian.szhjg.pojo.TMapperOption;
+import com.fudian.szhjg.service.TBatchService;
+import com.fudian.szhjg.service.TMapperOptionService;
+import com.fudian.szhjg.service.TMapperService;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+
+@Service
+public class DynamicDisplayServiceImpl implements DynamicDisplayService {
+
+    @Autowired
+    private TMapperMapper mapperMapper;
+    @Autowired
+    private TMapperService mapperService;
+
+    @Autowired
+    private TMapperOptionMapper mapperOptionMapper;
+    @Autowired
+    private TMapperOptionService mapperOptionService;
+
+    @Autowired
+    private TBatchService batchService;
+
+
+
+    //查询表头字段列表
+    @Override
+    public CommonResult headDisplayList(String headId, String headPoints) {
+        List<Object> mapperList = new ArrayList<>();
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,headId).eq(TMapper::getPoints,headPoints).eq(TMapper::getDisplaySet,"1");
+        wrapper.orderByAsc(TMapper::getDisplaySort);
+        List<TMapper> list = mapperService.list(wrapper);
+        for (TMapper mapper : list){
+            LinkedHashMap<String,Object> map = new LinkedHashMap<>();
+            map.put("label",mapper.getMetadataName());
+            map.put("prop",mapper.getSourceName());
+            if (mapper.getDisplayWidth() != null){
+                map.put("width",mapper.getDisplayWidth());
+            }
+            mapperList.add(map);
+        }
+        if (mapperList.size()>0){
+            //添加固定字段信息
+            mapperList = obtainFixedInformation(headPoints,mapperList);
+            return CommonResult.success(mapperList);
+        }else {
+            return CommonResult.success(mapperList);
+        }
+    }
+    //获取添加固定字段信息
+    private List<Object> obtainFixedInformation(String headPoints, List<Object> mapperList) {
+        if ("0".equals(headPoints)){
+            Map<String, Object> map1 = new LinkedHashMap<>();
+            map1.put("label", "当前工序");
+            map1.put("prop", "dqgx");
+            map1.put("width", 100);
+            mapperList.add(map1);
+            Map<String, Object> map2 = new LinkedHashMap<>();
+            map2.put("label", "领取人");
+            map2.put("prop", "lqr");
+            map2.put("width", 90);
+            mapperList.add(map2);
+            Map<String, Object> map3 = new LinkedHashMap<>();
+            map3.put("label", "当前状态");
+            map3.put("prop", "rwzt");
+            map3.put("width", 80);
+            mapperList.add(map3);
+            Map<String, Object> map4 = new LinkedHashMap<>();
+            map4.put("label", "创建人");
+            map4.put("prop", "createBy");
+            map4.put("width", 90);
+            mapperList.add(map4);
+            Map<String, Object> map5 = new LinkedHashMap<>();
+            map5.put("label", "创建时间");
+            map5.put("prop", "createTime");
+            map5.put("width", 135);
+            mapperList.add(map5);
+            Map<String, Object> map6 = new LinkedHashMap<>();
+            map6.put("label", "修改意见");
+            map6.put("prop", "xgyj");
+            map6.put("width", 200);
+            mapperList.add(map6);
+        }else if ("1".equals(headPoints)){
+            Map<String, Object> mapA = new LinkedHashMap<>();
+            mapA.put("label", "编号");
+            mapA.put("prop", "bh");
+            mapA.put("width", 200);
+            Map<String, Object> mapB = new LinkedHashMap<>();
+            mapB.put("label", "件号");
+            mapB.put("prop", "jh");
+            mapB.put("width", 100);
+            Map<String, Object> mapC = new LinkedHashMap<>();
+            mapC.put("label", "页数");
+            mapC.put("prop", "ys");
+            mapC.put("width", 80);
+            // 将所有已有元素向后移动一位，并腾出第一个位置
+            for(int i = mapperList.size() - 2; i >= 0; i--) {
+                mapperList.set(i + 1, mapperList.get(i));
+            }
+            //将新的元素添加到第一个位置
+            mapperList.add(0, mapC);
+            mapperList.add(0, mapB);
+            mapperList.add(0, mapA);
+        }
+        return mapperList;
+    }
+
+
+
+    //根据批次查询档案id
+    @Override
+    public String queryBatchId(String headBatch) {
+        LambdaQueryWrapper<TBatch> batchLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        batchLambdaQueryWrapper.eq(TBatch::getId,headBatch);
+        List<TBatch> list = batchService.list(batchLambdaQueryWrapper);
+        TBatch batch = new TBatch();
+        if ( list.size()>0 ){
+            batch = list.get(0);
+        }
+        return batch.getDalx();
+    }
+
+
+
+
+    /*[//需要数据格式
+      { label: '姓名', prop: 'name', type: 'input', placeholder: '请输入姓名', isRequired:true,max:10,min:1 },
+      { label: '性别', prop: 'gender', type: 'select', options: [{ label: '男', value: 'male' }, { label: '女', value: 'female' }], isRequired:true },
+    ]*/
+    //查询任务表单录入字段列表
+    @Override
+    public CommonResult formEntryList(String headId, String headPoints) {
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,headId).eq(TMapper::getPoints,headPoints).eq(TMapper::getEnterSet,"1");
+        wrapper.orderByAsc(TMapper::getEnterSort);
+        List<TMapper> mappersList = mapperService.list(wrapper);
+        //创建集合
+        List<Object> list = new ArrayList<>();
+        for (TMapper mapper : mappersList){
+            LinkedHashMap<String,Object> hashMap = new LinkedHashMap<>();
+            hashMap.put("label",mapper.getMetadataName());
+            hashMap.put("prop",mapper.getSourceName());
+            hashMap.put("type",mapper.getMetadataMode());
+            hashMap.put("placeholder","请输入"+mapper.getMetadataName());
+            //判断是否可以为空（0是  1否）
+            if ("0".equals(mapper.getIsNotNull())){
+                hashMap.put("isRequired", false);
+            }else if ("1".equals(mapper.getIsNotNull())){
+                hashMap.put("isRequired", true);
+            }
+
+            if ("input".equals(mapper.getMetadataMode())){
+                hashMap.put("min", 0);
+                if (StringUtils.isNotBlank(mapper.getMetadataLength())){
+                    hashMap.put("max", Integer.parseInt(mapper.getMetadataLength()));
+                }else {
+                    hashMap.put("max", 100);
+                }
+            }
+            //判断正则验证是否为空
+            if (StringUtils.isNotBlank(mapper.getMetadataRegular())){
+                hashMap.put("pattern",mapper.getMetadataRegular());
+            }
+            //判断是否是下拉框类型
+            if ("select".equals(mapper.getMetadataMode())){
+                List<Object> objectList = querySelectedFieldInformation(mapper.getMetadataName());
+                hashMap.put("options", objectList);
+            }
+            list.add(hashMap);
+        }
+        return CommonResult.success(list);
+    }
+
+    //目录著录-根据批次Id查询动态著录字段(专用)
+    @Override
+    public CommonResult catalogueDescriptionList(String headId, String headPoints) {
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,headId).eq(TMapper::getPoints,headPoints).eq(TMapper::getDescriptionSet,"1");
+        wrapper.orderByAsc(TMapper::getDescriptionSort);
+        List<TMapper> mappersList = mapperService.list(wrapper);
+        //创建集合
+        List<Object> list = new ArrayList<>();
+        for (TMapper mapper : mappersList){
+            LinkedHashMap<String,Object> hashMap = new LinkedHashMap<>();
+            hashMap.put("label",mapper.getMetadataName());
+            hashMap.put("prop",mapper.getSourceName());
+            hashMap.put("type",mapper.getMetadataMode());
+            hashMap.put("placeholder","请输入"+mapper.getMetadataName());
+            //判断是否可以为空（0是  1否）
+            if ("0".equals(mapper.getIsNotNull())){
+                hashMap.put("isRequired", false);
+            }else if ("1".equals(mapper.getIsNotNull())){
+                hashMap.put("isRequired", true);
+            }
+
+            if ("input".equals(mapper.getMetadataMode())){
+                hashMap.put("min", 0);
+                if (StringUtils.isNotBlank(mapper.getMetadataLength())){
+                    hashMap.put("max", mapper.getMetadataLength());
+                }else {
+                    hashMap.put("max", 100);
+                }
+            }
+            //判断正则验证是否为空
+            if (StringUtils.isNotBlank(mapper.getMetadataRegular())){
+                hashMap.put("pattern",mapper.getMetadataRegular());
+            }
+            //判断是否是下拉框类型
+            if ("select".equals(mapper.getMetadataMode())){
+                List<Object> objectList = querySelectedFieldInformation(mapper.getMetadataName());
+                hashMap.put("options", objectList);
+            }
+            list.add(hashMap);
+        }
+        return CommonResult.success(list);
+    }
+
+    //查询下拉框数据
+    private List<Object> querySelectedFieldInformation(String metadataName) {
+        //查询指定数据
+        LambdaQueryWrapper<TMapperOption> optionWrapper = new LambdaQueryWrapper<>();
+        optionWrapper.eq(TMapperOption::getMetadataName,metadataName).eq(TMapperOption::getType,"C");
+        optionWrapper.orderByAsc(TMapperOption::getDictSort);
+        List<TMapperOption> list = mapperOptionService.list(optionWrapper);
+        //创建一个新的集合
+        List<Object> objectList = new ArrayList<>();
+        //判断查询的数据是否有值
+        if ( list.size()>0 ){
+            for (TMapperOption mapper : list){
+                Map<String, String> map = new HashMap<>();
+                map.put("label", mapper.getDictLabel());
+                map.put("value", mapper.getDictLabel());
+                objectList.add(map);
+            }
+        }
+        return objectList;
+    }
+
+
+
+
+    //抽检页面动态展示字段
+    @Override
+    public CommonResult spotCheckDynamicList(String headId, String headPoints) {
+        List<Object> checkList = new ArrayList<>();
+        LambdaQueryWrapper<TMapper> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TMapper::getDaId,headId).eq(TMapper::getPoints,headPoints);
+        wrapper.and(w->w.eq(TMapper::getEnterSet,"1").or().eq(TMapper::getDescriptionSet,"1"));
+        wrapper.orderByAsc(TMapper::getSort);
+        List<TMapper> listMapper = mapperService.list(wrapper);
+        //添加数据
+        for (TMapper mapper:listMapper){
+            LinkedHashMap<String,Object> hashMap = new LinkedHashMap<>();
+            hashMap.put("label",mapper.getMetadataName());
+            hashMap.put("prop",mapper.getSourceName());
+            if (mapper.getDisplayWidth() != null){
+                hashMap.put("width",mapper.getDisplayWidth());
+            }else {
+                hashMap.put("width", 120);
+            }
+            checkList.add(hashMap);
+        }
+        if (checkList.size()>0){
+            checkList = spotCheckFixedField(headPoints,checkList);
+        }
+        return CommonResult.success(checkList);
+    }
+    //抽检固定字段
+    private List<Object> spotCheckFixedField(String headPoints, List<Object> checkList) {
+        if ("0".equals(headPoints)){
+            Map<String, Object> mapA = new LinkedHashMap<>();
+            mapA.put("label", "案卷总件数");
+            mapA.put("prop", "fileCount");
+            mapA.put("width", 100);
+            checkList.add(mapA);
+        }else if ("1".equals(headPoints)){
+            Map<String, Object> map1 = new LinkedHashMap<>();
+            map1.put("label", "编号");
+            map1.put("prop", "bh");
+            map1.put("width", 180);
+            Map<String, Object> map2 = new LinkedHashMap<>();
+            map2.put("label", "件号");
+            map2.put("prop", "jh");
+            map2.put("width", 70);
+            Map<String, Object> map3 = new LinkedHashMap<>();
+            map3.put("label", "开始页数");
+            map3.put("prop", "ksys");
+            map3.put("width", 70);
+            Map<String, Object> map4 = new LinkedHashMap<>();
+            map4.put("label", "终止页数");
+            map4.put("prop", "zzys");
+            map4.put("width", 70);
+            Map<String, Object> map5 = new LinkedHashMap<>();
+            map5.put("label", "页数");
+            map5.put("prop", "ys");
+            map5.put("width", 60);
+            // 将所有已有元素向后移动一位，并腾出第一个位置
+            for(int i = checkList.size() - 2; i >= 0; i--) {
+                checkList.set(i + 1, checkList.get(i));
+            }
+            //将新的元素添加到第一个位置
+            checkList.add(0, map5);
+            checkList.add(0, map4);
+            checkList.add(0, map3);
+            checkList.add(0, map2);
+            checkList.add(0, map1);
+        }
+        return checkList;
+    }
+
+
+
+}

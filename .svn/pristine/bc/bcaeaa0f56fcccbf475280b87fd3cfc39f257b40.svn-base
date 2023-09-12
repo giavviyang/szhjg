@@ -1,0 +1,37 @@
+package com.fudian.szhjg.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.fudian.szhjg.pojo.TJuanji;
+import com.fudian.szhjg.pojo.TJuanjiExample;
+import com.fudian.szhjg.pojo.vo.JuanjiVO;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
+
+@Mapper
+public interface TJuanjiMapper extends BaseMapper<TJuanji> {
+    long countByExample(TJuanjiExample example);
+
+    int deleteByExample(TJuanjiExample example);
+
+    List<TJuanji> selectByExample(TJuanjiExample example);
+
+    int updateByExampleSelective(@Param("record") TJuanji record, @Param("example") TJuanjiExample example);
+
+    int updateByExample(@Param("record") TJuanji record, @Param("example") TJuanjiExample example);
+
+
+    //根据批次id获取其下案卷总数
+    int getLengthTask(@Param("pcId") String pcId);
+
+    //抽检-随机抽取案卷
+    List<TJuanji> randomExtraData(@Param("num") int num, @Param("pcId") String pcId, @Param("ajIds") List<String> ajIds);
+
+    int bulkAdditions(JuanjiVO juanjiVO);
+
+    //获取案卷信息
+    @Select({"<script>"+ "${sql}"+ "</script>"})
+    List<TJuanji> getList(@Param("sql") String sql);
+}

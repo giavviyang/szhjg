@@ -1,0 +1,739 @@
+<template>
+  <div class="dashboard-editor-container">
+    <div class="chart-wrapper">
+      <el-form :model="queryForm" ref="queryForm" size="small" :inline="true" v-hasPermi="['szhjg:check:spotCheckTask:search']"
+               style="margin-top:5px;margin-bottom:0;">
+        <el-form-item label="选择批次" prop="pcId" >
+          <el-cascader v-model="queryForm.pcId" :options="projectOptions" :props="projectProps" clearable size="mini"
+                       filterable  :show-all-levels="false" @change="handleChange"></el-cascader>
+        </el-form-item>
+        <el-form-item label="抽检人" prop="cjrNx">
+          <el-input v-model="queryForm.cjrNx"  clearable style="width: 150px" class="rt-input" size="mini"
+                    @keyup.enter.native="batchSearch"/>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="el-icon-search" size="mini" @click="batchSearch">搜索</el-button>
+        </el-form-item>
+      </el-form>
+      <el-row :gutter="10" class="mb8">
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="el-icon-plus" size="mini" @click="generateCheck"
+                     v-hasPermi="['szhjg:check:spotCheckTask:checkA']">生成抽检</el-button>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="el-icon-plus" size="mini" @click="bhCheck"
+                     v-hasPermi="['szhjg:check:spotCheckTask:checkB']">编号抽检</el-button>
+        </el-col>
+      </el-row>
+      <!--任务表单信息-->
+      <el-table row-key="id" :data="checkList" border width="100%" height="calc(100% - 120px)" ref="checkTable" slot="table"
+                @selection-change="checkSelectionChange" @row-click="checkRowClick" @select="checksSelect"
+                :row-style="checkClass">
+        <el-table-column type="selection" width="40"></el-table-column>
+        <el-table-column align="center" :index="checkGetIndex" type="index" label="序号" width="55"></el-table-column>
+        <el-table-column align="center" v-for="(item,index) in checkColumns" :formatter="item.formatter" :key="index"
+                         :label="item.label" :prop="item.prop" :v-if="checkColumns[index].isCol" :min-width="item.width"
+                         show-overflow-tooltip >
+        </el-table-column>
+        <el-table-column align="center" label="操作" width="120">
+          <template slot-scope="scope">
+            <el-button type="text" size="mini" v-hasPermi="['szhjg:check:spotCheckTask:processRecord']"
+                       @click="queryGx(scope.row)">工序记录</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="page" style="margin-top: 5px;">
+        <el-pagination :page-sizes="[20, 30, 50, 100]" :page-size="pageSize" :current-page="pageNum" :total="total"
+                       layout="total, sizes, prev, pager, next, jumper" @size-change="pageSizeS"  :pager-count="5"
+                       @current-change="pageCurrent"/>
+      </div>
+    </div>
+
+    <!--生成抽检-->
+    <el-dialog title="生成抽检" :visible.sync="dialogFormVisibleCheck1" width="660px" :close-on-click-modal="false"
+               :close-on-press-escape="false" :destroy-on-close="true" :append-to-body="true"
+               class="dialog-style dialog-basic">
+      <el-form ref="checkTask" :model="checkTask" :inline="true" :rules="checkRules" label-width="100px">
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="选择批次" prop="pcMc">
+              <el-cascader v-model="checkTask.pcMc" :options="spotCheckOptions" :props="spotCheckProps" clearable size="mini"
+                           filterable :show-all-levels="false" style="width:200px" @change="checkPC"></el-cascader>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="档案类型" prop="archivesType" >
+              <el-input v-model="archivesType" size="mini" placeholder="" clearable :disabled="true" class="rt-input"
+                        style="width:200px"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="选择范围" prop="fileScope">
+              <el-select  v-model="checkTask.fileScope" placeholder="请选择范围" clearable size="mini" style="width:200px">
+                <el-option label="10%" value="10"></el-option>
+                <el-option label="20%" value="20"></el-option>
+                <el-option label="30%" value="30"></el-option>
+                <el-option label="40%" value="40"></el-option>
+                <el-option label="50%" value="50"></el-option>
+                <el-option label="60%" value="60"></el-option>
+                <el-option label="70%" value="70"></el-option>
+                <el-option label="80%" value="80"></el-option>
+                <el-option label="90%" value="90"></el-option>
+                <el-option label="100%" value="100"></el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button size="mini" plain @click="cancelTask">取 消</el-button>
+        <el-button size="mini" plain type="primary" @click="insertCheckOne('checkTask')">生 成 抽 检</el-button>
+      </div>
+    </el-dialog>
+
+    <!--档号抽检-->
+    <el-dialog title="编号抽检" :visible.sync="dialogFormVisibleCheck2" width="400px" :close-on-click-modal="false"
+               :close-on-press-escape="false" :destroy-on-close="true" :append-to-body="true"
+               class="dialog-style dialog-basic" >
+      <el-form ref="checkBh" :model="checkBh" :inline="true" :rules="BhRules" label-width="100px">
+        <el-row><el-col :span="24">
+          <el-form-item label="选择批次" prop="pcMc">
+            <el-cascader v-model="checkBh.pcMc" :options="spotCheckOptions" :props="spotCheckProps" clearable size="mini"
+                         filterable  :show-all-levels="false" @change="checkDC"></el-cascader>
+          </el-form-item>
+        </el-col></el-row>
+        <el-row><el-col :span="24">
+          <el-form-item label="档案类型" prop="numberType">
+            <el-input  v-model="numberType"  size="mini" placeholder="" clearable :disabled="true" class="rt-input"
+                      style="width:200px"/>
+          </el-form-item>
+        </el-col></el-row>
+        <el-row><el-col :span="24">
+          <el-form-item label="编号" prop="bh">
+            <el-input v-model="checkBh.bh" placeholder="" clearable size="mini" style="width:200px" @blur="checkNameBh"/>
+          </el-form-item>
+        </el-col></el-row>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button size="mini" plain @click="cancelCheck">取 消</el-button>
+        <el-button size="mini" plain type="primary" @click="insertCheckBh('checkBh')">生 成 抽 检</el-button>
+      </div>
+    </el-dialog>
+
+    <!--工序-->
+    <el-dialog title="执行工序" :visible.sync="dialogFormVisibleCheck3" width="60%" :close-on-click-modal="false"
+               class="dialog-style dialog-basic">
+      <el-col :span="24" style="height: calc(100% - 40px)">
+        <CommonTable :tableData="gxList"  :columnData="gxColumns" :pageNum="nodeGx.gxPageNum" :pageSize="nodeGx.gxPageSize"
+                     :total="nodeGx.gxTotal" @handleChange="pageSizeGx" style="height:440px" :isNotPage='1'/>
+      </el-col>
+    </el-dialog>
+
+  </div>
+</template>
+
+<script>
+
+import CommonTable from "@/views/szhjg/check/spotCheckTask/CommonTable";
+import { queryArchivesName, queryDisplayGx } from "@/api/szhjg/szhjgCommon";
+import { completeProjectBatch, queryAJRecord, queryBatchName, querySpotCheckList } from "@/api/szhjg/check/spotCheckTask";
+import { addSpotCheck, } from "@/api/szhjg/check/spotCheckTask";
+import { addDhCheck, addSpotNumber, checkNameBhCount, } from "@/api/szhjg/check/spotCheckTask";
+
+
+const params = {
+  pageNum: 1,
+  pageSize: 20
+}
+export default {
+  name: "index",
+  components: {CommonTable},
+  data() {
+    return {
+      dialogFormVisibleCheck1: false, //生成抽检弹窗
+      dialogFormVisibleCheck2: false, //档号抽检弹窗
+      dialogFormVisibleCheck3: false, //工序抽检弹窗
+      // 遮罩层
+      loading: true,
+      total: 0,
+      pageNum: 1,
+      pageSize: 20,
+      //搜索
+      queryForm: {
+        pcId: [],
+        cjrNx: '',
+      },
+      //搜索框批次
+      projectOptions: [],
+      projectProps: {label: 'projectName', value: 'benId', children: 'pcName'},
+
+      //生成抽检中项目批次信息
+      spotCheckOptions:[],
+      spotCheckProps: {label: 'projectName', value: 'benId', children: 'pcName', archives:"archives"},
+
+      optionsBatch: [],       //存放页面展示批次
+      optionsProcedure: [],   //存放页面展示工序
+      dalxOptions: [],        //存放档案类型列表
+      archivesType: '',       //生成抽检档案类型名称
+      numberType: '',         //编号抽检档案类型名称
+
+      //复选框选中
+      checkGridCheck: [],
+      //任务列表
+      checkList: [],
+      //任务表头
+      checkColumns: [
+        {label: '批次名称', prop: 'pcId', isCol: true ,formatter: this.batchNameOptions},
+        {label: '编号', prop: 'bh', isCol: true},
+        {label: '抽检人', prop: 'cjrNx', isCol: true},
+        {label: '领取任务时间', prop: 'claimTime', isCol: true},
+        {label: '完成任务时间', prop: 'finishTime', isCol: true},
+      ],
+
+      checkTask: {
+        pcMc:'', pcId:'', fileScope:'',
+      },
+      checkRules: {
+        pcMc: [
+          {required: true, message: '批次不能为空', trigger: 'blur'},
+        ],
+        fileScope: [
+          {required: true, message: '选择范围不能为空', trigger: 'blur'},
+        ],
+      },
+
+      cxNameBh:'',
+      checkBh: {
+        pcMc:'', pcId:'', bh:'',
+      },
+      BhRules: {
+        pcMc: [
+          {required: true, message: '批次不能为空', trigger: 'blur'},
+        ],
+        bh: [
+          {required: true, message: '编号不能为空', trigger: 'blur'},
+        ],
+      },
+
+
+      nodeGx: {
+        gxTotal: 0,
+        gxPageNum: 1,
+        gxPageSize: 20,
+      },
+      gxId: '',
+      gxList: [],
+      gxColumns: [
+        {label: '加工工序', prop: 'jggx', isCol: true, width: '120',formatter: this.gxNameOptions },
+        {label: '领取时间', prop: 'claimTime',  width: '180', isCol: true},
+        {label: '完成时间', prop: 'finishTime',  width: '180', isCol: true},
+        {label: '状态', prop: 'state', isCol: true , width: '80'},
+        {label: '返工原因 ', prop: 'xgyj', isCol: true},
+      ],
+
+    }
+  },
+
+  mounted() {
+    this.queryList(params);
+  },
+
+  created() {
+    this.queryOptions();
+    this.queryBatchNameOptions();
+    this.dalxQueryOptions();
+    this.queryGxOptions();
+  },
+
+  methods: {
+    //查询项目批次
+    queryOptions(){
+      completeProjectBatch().then((res) => {
+        this.projectOptions = res.data;
+        this.spotCheckOptions = res.data;
+      })
+    },
+    //查询批次名称
+    queryBatchNameOptions() {
+      queryBatchName().then(res => {
+        this.optionsBatch = res.map((item) => {
+          return item;
+        });
+      });
+    },
+    //转换批次名称
+    batchNameOptions(row, column, cellValue) {
+      let result;
+      for (var i in this.optionsBatch) {
+        if (cellValue == this.optionsBatch[i].value) {
+          result = this.optionsBatch[i].label
+        }
+      }
+      return result;
+    },
+    //查询档案名称字段
+    dalxQueryOptions() {
+      const dictType = "";
+      queryArchivesName(dictType).then(res => {
+        this.dalxOptions = res.map((item) => {
+          return item;
+        });
+      });
+    },
+    //查询页面动态展示工序
+    queryGxOptions() {
+      queryDisplayGx().then(res => {
+        this.optionsProcedure = res.map((item) => {
+          return item;
+        });
+      });
+    },
+    //转换工序
+    gxNameOptions(row, column, cellValue) {
+      let result;
+      for (var i in this.optionsProcedure) {
+        if (cellValue == this.optionsProcedure[i].value) {
+          result = this.optionsProcedure[i].label
+        }
+      }
+      return result;
+    },
+
+    //上部搜索
+    batchSearch() {
+      this.pageNum = 1;
+      let params = {
+        pageNum: 1,
+        pageSize: 20,
+        pcId: this.queryForm.pcId[2],
+        cjrNx: this.queryForm.cjrNx,
+      }
+      this.queryList(params)
+    },
+    //切换项目批次之后进行查询
+    handleChange(value) {
+      params.pcId = value[2];
+      this.queryList(params);
+    },
+    //分页
+    pageCurrent(val) {
+      this.pageNum = val
+      params.pageNum = val
+      params.pageSize = this.pageSize;
+      params.pcId = this.queryForm.pcId[2];
+      params.cjrNx = this.queryForm.cjrNx;
+      this.queryList(params)
+    },
+    pageSizeS(val) {
+      this.pageSize = val
+      params.pageSize = val;
+      params.pageNum = this.pageNum;
+      params.pcId = this.queryForm.pcId[2];
+      params.cjrNx = this.queryForm.cjrNx;
+      this.queryList(params)
+    },
+    //查询数据展示页面
+    queryList(params) {
+      const _this = this;
+      querySpotCheckList(params, {emulateJSON: true}).then(function (response) {
+        _this.checkList = response.rows;
+        _this.total = response.total;
+        _this.loading = false;
+      })
+    },
+
+    //复选框事件
+    checkSelectionChange(val) {
+      this.checkGridCheck = val;
+    },
+    //行点击事件
+    checkRowClick(row, column, event) {
+      this.$refs.checkTable.clearSelection();
+      if (this.checkGridCheck.length === 0) {
+        this.$refs.checkTable.toggleRowSelection(row)
+        return;
+      }
+      this.$refs.checkTable.toggleRowSelection(row)
+    },
+    async checksSelect(selection, row) {
+      //执行完清空操作在进行下面的勾选
+      await this.$refs.checkTable.clearSelection();
+      if (selection.length === 0) return;
+      this.$refs.checkTable.toggleRowSelection(row, true);
+    },
+    checkClass( { row,rowIndex }) {
+      if (this.checkGridCheck.includes(row)){
+        return {
+          "background":"#b9deff !important", "color": "blue",
+        }
+      } else {
+        return {
+          "——tablebackground" : "#F5F7FA",
+        }
+      }
+    },
+    //翻页后序号连贯
+    checkGetIndex($index) {
+      return (this.pageNum - 1) * this.pageSize + $index + 1;
+    },
+
+
+    //生成抽检
+    generateCheck(){
+      this.dialogFormVisibleCheck1 = true;
+    },
+    checkPC(val){
+      if(val.length == 3) {
+        let lxNm = this.spotCheckOptions.filter(item => item.pcName.some(pcName => val.includes(pcName.benId)))
+          .flatMap(item => item.pcName)
+          .filter(pcName => val.includes(pcName.benId))
+          .flatMap(pcName => pcName.archives);
+        //转换档案类型名称
+        let isFind = false;
+        for (var i in this.dalxOptions) {
+          if (lxNm == this.dalxOptions[i].value) {
+            lxNm = this.dalxOptions[i].label;
+            isFind = true;
+            break; // 找到之后跳出循环
+          }
+        }
+        if (!isFind) {
+          lxNm = '';
+        }
+        this.archivesType = lxNm;
+      }
+    },
+    //生成抽检取消
+    cancelTask(){
+      this.checkTask.pcMc = '';
+      this.archivesType = '';
+      this.checkTask.fileScope = '';
+      this.dialogFormVisibleCheck1=false;
+    },
+    //生成抽检保存
+    insertCheckOne(checkTask){
+      const _this = this;
+      this.$refs["checkTask"].validate((valid) => {
+        if (valid) {
+          this.checkTask.pcId = this.checkTask.pcMc[2];
+          //查询数量
+          addSpotNumber(this.checkTask).then(response => {
+            this.$confirm(response.msg, '提示', {
+              confirmButtonText: '确定',
+              cancelButtonText: '取消',
+              type: 'warning',
+            }).then(() => {
+              addSpotCheck(this.checkTask).then(response => {
+                if (response.code == "200") {
+                  _this.$message({message: "抽检任务生成成功", type: 'success'});
+                  _this.batchSearch();
+                  _this.clearForm1();
+                  _this.dialogFormVisibleCheck1 = false;
+                }else {
+                  this.$message({message: "抽检任务生成失败", type: 'error'});
+                }
+              })
+            }).catch(() => {});
+          })
+        }else {
+          return false;
+        }
+      })
+    },
+    //清空表单
+    clearForm1(){
+      this.checkTask = {pcMc:'', pcId:'', fileScope:'',};
+      this.archivesType = '';
+    },
+
+
+    //编号抽检
+    bhCheck(){
+      this.dialogFormVisibleCheck2 = true;
+    },
+    //编号抽检取消
+    cancelCheck(){
+      this.checkBh = {pcMc:'', pcId:'', bh:'',};
+      this.numberType = '';
+      this.dialogFormVisibleCheck2 = false;
+    },
+    checkDC(val){
+      if(val.length == 3) {
+        let lxNm = this.spotCheckOptions.filter(item => item.pcName.some(pcName => val.includes(pcName.benId)))
+          .flatMap(item => item.pcName)
+          .filter(pcName => val.includes(pcName.benId))
+          .flatMap(pcName => pcName.archives);
+        //转换档案类型名称
+        let isFind = false;
+        for (var i in this.dalxOptions) {
+          if (lxNm == this.dalxOptions[i].value) {
+            lxNm = this.dalxOptions[i].label;
+            isFind = true;
+            break; // 找到之后跳出循环
+          }
+        }
+        if (!isFind) {
+          lxNm = '';
+        }
+        this.numberType = lxNm;
+      }
+    },
+    //是否重复抽检查询
+    checkNameBh(event) {
+      let nameBh = event.target.value;
+      checkNameBhCount({bh:nameBh}).then(response =>{
+        this.cxNameBh = response.msg;
+        if( this.cxNameBh == "true"){
+          this.$message.error("编号已被抽检!")
+        }
+      })
+    },
+    insertCheckBh(checkBh){
+      if (this.cxNameBh == "true"){
+        this.$message.error("编号已被抽检,无法提交,请更换编号!")
+      }else {
+        const _this = this;
+        this.$refs["checkBh"].validate((valid) => {
+          if (valid) {
+            this.checkBh.pcId = this.checkBh.pcMc[2];
+            addDhCheck(this.checkBh).then(response => {
+              if (response.code == "200") {
+                _this.$message({message: "编号抽检任务生成成功", type: 'success'});
+                _this.batchSearch();
+                _this.clearForm2();
+                _this.dialogFormVisibleCheck2 = false;
+              }else {
+                this.$message({message: "编号抽检任务生成失败", type: 'error'});
+              }
+            })
+          }else {
+            return false;
+          }
+        })
+      }
+    },
+    //清空表单
+    clearForm2(){
+      this.checkBh = {pcMc:'', pcId:'', bh:'',};
+      this.numberType = '';
+    },
+
+
+    //记录查看
+    queryGx(val){
+      let params = {
+        pageNum: 1,
+        pageSize: 20,
+        ajId:val.ajId,
+      }
+      this.gxId = val.ajId;
+      this.queryGxList(params);
+      this.dialogFormVisibleCheck3 = true;
+    },
+    pageSizeGx(pageSize, pageNum)  {
+      params.pageSize = pageSize;
+      params.pageNum = pageNum;
+      params.ajId = this.gxId;
+      this.queryGxList(params);
+    },
+    queryGxList(params) {
+      const _this = this;
+      queryAJRecord(params, {emulateJSON: true}).then(function (response) {
+        _this.gxList = response.rows;
+        _this.nodeGx.gxTotal = response.total;
+        _this.loading = false;
+      })
+    },
+
+  },
+
+}
+</script>
+
+<style scoped lang="scss">
+.el-form-item--small.el-form-item{
+  margin-bottom: 5px;
+}
+
+.dashboard-editor-container {
+  padding: 10px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  .github-corner {
+    position: absolute;
+    top: 0;
+    border: 0;
+    right: 0;
+  }
+  .chart-wrapper {
+    width: 100%;
+    height: 100%;;
+  }
+}
+
+::v-deep .el-table {
+  border-right:1px solid #dfe6ec;
+  color: #515a6e;
+  & > .el-table__header-wrapper {
+    & > table {
+      tr:first-of-type {
+        th {
+          background: rgba(204, 204, 204, 0.18);
+          color: #515a6e;
+          font-size: 12px;
+          //text-align: center;
+          height: 34px !important;
+          padding: 5px 0 !important;
+        }
+      }
+      tr:nth-of-type(2) {
+        th {
+          background: #fff;
+          //background: rgba(204, 204, 204, 0.05);
+          color: #515a6e;
+          font-size: 12px;
+          text-align: center;
+          padding: 0 !important;
+          height: 34px;
+          .el-input__inner {
+            border: none;
+            padding: 0;
+            height: 20px;
+          }
+        }
+      }
+      & > colgroup {
+        col {
+          &:last-of-type {
+            width: 17px !important;
+          }
+        }
+      }
+    }
+  }
+  .el-table__body-wrapper {
+    overflow: auto !important;
+    //border-right: 1px solid #dfe6ec;
+    //width: calc(100% - 1px);
+    .el-table__row {
+      td {
+        text-align: center;
+        font-size: 12px;
+        padding: 5px 0 !important;
+        &:last-child {
+          .cell {
+            display: flex;
+            //margin: 0 5px;
+            //flex-direction: column;
+            justify-content: space-around;
+            width: 100%;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow: ellipsis;
+            //padding: 0;
+            .el-button {
+              width: 100%;
+              height: 100%;
+              position: relative;
+              top: 0;
+              right: 0;
+              //padding: 0;
+              margin: 0 2px;
+              //span{
+              //  display: inline-block;
+              //  height: 100%;
+              //}
+            }
+          }
+        }
+      }
+    }
+  }
+  //滚动条
+  /**滚动条的宽度*/
+  ::-webkit-scrollbar {
+    width: 10px !important; /*竖向*/
+    height: 10px !important; /*横向*/
+  }
+  /*滚动条的滑块*/
+  ::-webkit-scrollbar-thumb {
+    background-color: #ddd !important;
+    border-radius: 8px !important;
+  }
+}
+.page {
+  float: right;
+  height: 38px;
+  text-align: right;
+  ::v-deep .el-pagination {
+    height: 28px;
+    //position: relative;
+    //margin-top: 5px;
+    font-size: 12px;
+    & > .el-pagination__total {
+      font-size: 12px;
+    }
+    & > .el-pagination__sizes {
+      .el-input {
+        input {
+          font-size: 12px;
+          height: 26px;
+        }
+      }
+    }
+    button {
+      background-color: transparent;
+    }
+    & > .el-pager {
+      li {
+        font-size: 12px;
+        background-color: transparent;
+      }
+    }
+    & > .el-pagination__jump {
+      font-size: 12px;
+      .el-input {
+        input {
+          font-size: 12px;
+          height: 26px;
+        }
+      }
+    }
+  }
+}
+
+::v-deep .el-table tbody tr:hover>td {
+  background: var(--tablebackground) !important;
+}
+//表格鼠标悬浮时的样式 （高亮）
+::v-deep  {
+  .el-table--enable-row-hover {
+    .el-table__body tr {
+      &:hover {
+        background: rgb(223 239 253);
+        border: 1px solid #313463;
+      }
+    }
+  }
+}
+
+// 基本信息弹框
+.dialog-basic {
+  margin-left: 10px;
+  .form-basic {
+    margin-bottom: 15px;
+    line-height: 30px;
+    border-bottom: 1px solid #ccc;
+    margin-left: 15px;
+    margin-right: 15px;
+  }
+}
+
+.rt-input ::v-deep .el-input__inner{
+  color:  #000000;
+}
+
+</style>

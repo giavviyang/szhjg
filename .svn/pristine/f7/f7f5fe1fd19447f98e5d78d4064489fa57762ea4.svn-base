@@ -1,0 +1,246 @@
+package com.fudian.szhjg.controller;
+
+import com.alibaba.excel.util.CollectionUtils;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.common.core.domain.model.LoginUser;
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.common.utils.SecurityUtils;
+import com.fudian.common.utils.uuid.IdUtils;
+import com.fudian.szhjg.busiservice.BatchManagementService;
+import com.fudian.szhjg.mapper.TBatchMapper;
+import com.fudian.szhjg.mapper.TJuanjiMapper;
+import com.fudian.szhjg.pojo.TBatch;
+import com.fudian.szhjg.pojo.TJuanji;
+import com.fudian.szhjg.service.TBatchService;
+import com.fudian.szhjg.service.TJuanjiService;
+import com.fudian.szhjg.templateMode.CommonTemplate;
+import com.github.xiaoymin.knife4j.annotations.ApiOperationSupport;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Date;
+import java.util.List;
+
+
+@Api(tags = "A12  项目批次管理-批次管理")
+@RestController
+@RequestMapping("/pcgl")
+public class BatchManagementController {
+
+    @Autowired
+    private TBatchService tBatchService;
+    @Autowired
+    private TBatchMapper tBatchMapper;
+
+    @Autowired
+    private BatchManagementService batchManagementService;
+
+    @Autowired
+    private TJuanjiMapper juanjiMapper;
+    @Autowired
+    private TJuanjiService juanjiService;
+
+
+
+    @ApiOperation("查询进行中项目名称")
+    @ApiOperationSupport(order = 1)
+    @GetMapping("/queryProjectName")
+    public List<Object> queryProjectName() {
+        return batchManagementService.queryProjectName();
+    }
+
+    /**查询批次列表
+     * 2023-02-07
+     * @param tBatch
+     * @return
+     */
+    @ApiOperation("查询批次列表")
+    @ApiOperationSupport(order = 11)
+    @GetMapping("/queryBatchList")
+    @ResponseBody
+    public CommonGridResult queryBatchList(TBatch tBatch){
+        CommonTemplate commonTemplate = new CommonTemplate(tBatch,tBatchService,tBatchMapper);
+        //查询批次
+        LambdaQueryWrapper<TBatch> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        if ( StringUtils.isNotBlank(tBatch.getPcName())){
+            lambdaQueryWrapper.like(TBatch::getPcName,tBatch.getPcName());
+        }
+        //判断项目id是否存在
+        if (StringUtils.isNotBlank(tBatch.getProjectId())){
+            lambdaQueryWrapper.like(TBatch::getProjectId,tBatch.getProjectId());
+        }else {
+            //查询进行中项目id
+            List<String> Ids = batchManagementService.ProjectLists();
+            if (CollectionUtils.isEmpty(Ids)) {
+                lambdaQueryWrapper.isNull(TBatch::getProjectId);
+            }else {
+                lambdaQueryWrapper.in(TBatch::getProjectId,Ids);
+            }
+        }
+        lambdaQueryWrapper.orderByAsc(TBatch::getIsfinished)
+                .orderByAsc(TBatch::getDalx)
+                .orderByAsc(TBatch::getProjectId)
+                .orderByDesc(TBatch::getCreateTime);
+        CommonGridResult commonGridResult = commonTemplate.list(lambdaQueryWrapper);
+        return  commonGridResult;
+    }
+
+    /**新增批次
+     * 2023-02-07
+     * @param tBatch
+     * @return
+     */
+    @ApiOperation("新增批次")
+    @ApiOperationSupport(order = 12)
+    @PostMapping("/insertOneBatch")
+    @ResponseBody
+    public CommonResult insertOneBatch(@Validated @RequestBody TBatch tBatch){
+        //查询项目信息
+        String dalx = batchManagementService.getProjectOne(tBatch.getProjectId());
+        if (StringUtils.isNotBlank(dalx)){
+            String uuid = IdUtils.simpleUUID();
+            // 获取当前的用户
+            LoginUser loginUser = SecurityUtils.getLoginUser();
+
+            tBatch.setId(uuid);
+            tBatch.setDalx(dalx);
+            tBatch.setCreateBy(loginUser.getUser().getNickName());
+            Date date = new Date();
+            tBatch.setCreateTime(date);
+            tBatch.setBegindate(date);
+            tBatch.setIsfinished("0");
+
+            CommonTemplate commonTemplate = new CommonTemplate(tBatch,tBatchService,tBatchMapper);
+            CommonResult commonResult = commonTemplate.insert();
+            return  commonResult;
+        }else {
+            return new CommonResult(500,"新增批次失败");
+        }
+    }
+
+    /**编辑批次
+     * 2023-02-07
+     * @param tBatch
+     * @return
+     */
+    @ApiOperation("编辑批次")
+    @ApiOperationSupport(order = 13)
+    @PostMapping("/updateOneBatch")
+    @ResponseBody
+    public CommonResult updateOneBatch(@Validated @RequestBody TBatch tBatch){
+        // 获取当前的用户
+        LoginUser loginUser = SecurityUtils.getLoginUser();
+
+        tBatch.setUpdateBy(loginUser.getUser().getNickName());
+        tBatch.setUpdateTime(new Date());
+
+        CommonTemplate commonTemplate = new CommonTemplate(tBatch,tBatchService,tBatchMapper);
+        CommonResult commonResult = commonTemplate.update();
+        return  commonResult;
+    }
+
+    /**删除批次
+     * 2023-02-08
+     * @param id
+     * @return
+     */
+    @ApiOperation("删除批次")
+    @ApiOperationSupport(order = 14)
+    @DeleteMapping("/deleteOneBatch/{id}")
+    @ResponseBody
+    public CommonResult deleteOneBatch(@PathVariable("id") String id){
+        //查询批次下是否有案卷
+        String exist = batchManagementService.queryBatchData(id);
+        if ("true".equals(exist)){
+            return new CommonResult(500,"该批次存在关联案卷信息,无法删除批次!");
+        }
+        TBatch tBatch = new TBatch();
+        CommonTemplate commonTemplate = new CommonTemplate(tBatch,tBatchService,tBatchMapper);
+        CommonResult commonResult = commonTemplate.delete(id);
+        return  commonResult;
+    }
+
+
+
+    @ApiOperation("完成批次")
+    @ApiOperationSupport(order = 15)
+    @GetMapping("/completeBatch")
+    public CommonResult completeBatch(String id){
+        return batchManagementService.completeBatch(id);
+    }
+
+
+    /**批次管理-查询任务列表
+     * 2023-04-30
+     * @param tJuanji
+     * @return
+     */
+    @ApiOperation("批次管理-查询任务列表")
+    @ApiOperationSupport(order = 20)
+    @GetMapping("/queryBatchTaskList")
+    @ResponseBody
+    public CommonGridResult queryBatchTaskList(TJuanji tJuanji){
+        CommonTemplate commonTemplate = new CommonTemplate(tJuanji,juanjiService,juanjiMapper);
+        LambdaQueryWrapper<TJuanji> tWrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(tJuanji.getPcId())){
+            tWrapper.eq(TJuanji::getPcId,tJuanji.getPcId());
+        }
+        if (StringUtils.isNotBlank(tJuanji.getBh())){
+            tWrapper.like(TJuanji::getBh,tJuanji.getBh());
+        }
+        tWrapper.orderByDesc(TJuanji::getRwzt).orderByAsc(TJuanji::getDqgx).orderByAsc(TJuanji::getBh);
+        CommonGridResult commonGridResult = commonTemplate.list(tWrapper);
+        return commonGridResult;
+    }
+
+
+
+    /**
+     * 项目管理已完成项目查询批次列表
+     * @param tBatch
+     * @return
+     */
+    @ApiOperation("项目管理-已完成项目-查询批次列表")
+    @ApiOperationSupport(order = 11)
+    @GetMapping("/queryCompletedBatchList")
+    @ResponseBody
+    public CommonGridResult queryCompletedBatchList(TBatch tBatch) {
+        CommonTemplate commonTemplate = new CommonTemplate(tBatch,tBatchService,tBatchMapper);
+
+        LambdaQueryWrapper<TBatch> lambdaQueryWrapper = new LambdaQueryWrapper<>();
+        if ( StringUtils.isNotBlank(tBatch.getPcName())){
+            lambdaQueryWrapper.like(TBatch::getPcName,tBatch.getPcName());
+        }
+        if (StringUtils.isNotBlank(tBatch.getProjectId())){
+            lambdaQueryWrapper.like(TBatch::getProjectId,tBatch.getProjectId());
+        }
+        lambdaQueryWrapper.eq(TBatch::getIsfinished,"1");
+        lambdaQueryWrapper.orderByAsc(TBatch::getDalx).orderByDesc(TBatch::getCreateTime);
+        CommonGridResult commonGridResult = commonTemplate.list(lambdaQueryWrapper);
+        return  commonGridResult;
+    }
+
+    @ApiOperation("项目管理-已完成项目-查询任务列表")
+    @ApiOperationSupport(order = 11)
+    @GetMapping("/queryCompletedTaskList")
+    @ResponseBody
+    public CommonGridResult queryCompletedTaskList(TJuanji tJuanji){
+        CommonTemplate commonTemplate = new CommonTemplate(tJuanji,juanjiService,juanjiMapper);
+        LambdaQueryWrapper<TJuanji> tWrapper = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(tJuanji.getPcId())){
+            tWrapper.eq(TJuanji::getPcId,tJuanji.getPcId());
+        }
+        if (StringUtils.isNotBlank(tJuanji.getBh())){
+            tWrapper.like(TJuanji::getBh,tJuanji.getBh());
+        }
+        tWrapper.orderByAsc(TJuanji::getBh).orderByDesc(TJuanji::getRwzt);
+        CommonGridResult commonGridResult = commonTemplate.list(tWrapper);
+        return commonGridResult;
+    }
+
+}

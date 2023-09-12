@@ -1,0 +1,114 @@
+<template>
+  <div style="height: 100%">
+    <!-- 不需要分页添加（:hasSelection="false" :isPage="false"）两个属性-->
+    <TablePage :tableData="dataList.rows" :pageSize="dataList.pageSize" :pageNum="dataList.pageNum" :total="dataList.total"
+               @handleSelectionChange="handleSelectionChange" @handleRowClick="handleRowClick" @handleChange="handleChange">
+      <template v-slot:table>
+        <el-table-column slot="table" v-for="(item,index) in frameColumns" :key="index" :label="item.label"
+                         :prop="item.prop" :min-width="item.width" show-overflow-tooltip>
+        </el-table-column>
+        <el-table-column
+          fixed="right"
+          align="center"
+          label="操作"
+          width="100px">
+          <template slot-scope="scope">
+            <el-button type="text" size="small" v-hasPermi="['components:xmgl:taskF']"
+                       @click="viewTask(scope.row)">查看批次任务</el-button>
+          </template>
+        </el-table-column>
+      </template>
+    </TablePage>
+
+    <CompletedProject v-if="dialogFormVisible" ref="CompletedProject"></CompletedProject>
+
+  </div>
+</template>
+
+<script>
+import TablePage from "@/components/public/table/TablePage";
+import CompletedProject from '@/views/components/xmgl/CompletedProject/index';
+import {queryArchivesName} from "@/api/szhjg/szhjgCommon";
+
+export default {
+  name: "complete",
+  components: {TablePage, CompletedProject},
+  props:{
+    ProjectList: Object,
+    pageNum: Number,
+    pageSize: Number,
+  },
+  watch:{
+    ProjectList(val){
+      val.rows.forEach((value, index) => {
+        const arr = this.dalxOptions.map((item) => {
+          return item
+        })
+        for (var i in arr) {
+          if (value.dalx == arr[i].value) {
+            value.dalx = arr[i].label;
+          }
+        }
+      })
+      this.dataList = val
+      // console.log(this.dataList)
+      // this.frameList = this.dataList.rows
+    }
+  },
+  data() {
+    return {
+      dialogFormVisible: false,
+      id: null,
+      dataList: {},
+      formLabelWidth: '80px',
+      frameColumns: [
+        {label: '项目名称', prop: 'projectName', width: '200'},
+        {label: '项目描述', prop: 'projectXmms', width: '200'},
+        {label: '当前工序', prop: 'dqgx', width: '200'},
+        {label: '档案类型', prop: 'dalx', width: '200'},
+        {label: '创建人', prop: 'createBy', width: '200'},
+        /*{label: '创建时间', prop: 'createTime', width: '200'},*/
+        {label: '开始时间', prop: 'begindate', width: '200'},
+        {label: '结束时间', prop: 'enddate', width: '200'},
+      ],
+    }
+  },
+  created() {
+    this.dalxQueryOptions();
+  },
+  methods: {
+    //弹窗查询档案名称字段
+    dalxQueryOptions() {
+      const dictType = "";
+      queryArchivesName(dictType).then(res => {
+        this.dalxOptions = res.map((item) => {
+          return item;
+        });
+      });
+    },
+    handleChange(pageSize,pageNum){
+      this.$emit('handleChange', pageSize,pageNum);
+    },
+    // 复选框事件
+    handleSelectionChange(val) {
+      // console.log(val)
+    },
+    // 行点击事件
+    handleRowClick(row, column, event) {
+      // console.log(row.row.id)
+      //this.$router.push({path: '/szhjg/xmpcgl/pcgl',query:{id:row.row.id}})
+    },
+
+    viewTask(val){
+      //this.$router.push({path: '/szhjg/xmpcgl/pcgl',query:{id:val.id}});
+      this.dialogFormVisible = true;
+      this.$nextTick(() => {
+        this.$refs.CompletedProject.init(val.id,val.projectName);
+      });
+    }
+  },
+}
+</script>
+
+<style lang="scss" scoped>
+</style>

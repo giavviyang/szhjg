@@ -1,0 +1,123 @@
+package com.fudian.szhjg.pojo;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fudian.common.pojo.BaseEntity;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+
+import java.io.Serializable;
+import java.util.Date;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+
+/**
+ * 抽检任务生成表
+ */
+@ApiModel(value="抽检任务生成表  TChoujianTask")
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@TableName(value = "t_choujian_task")
+public class TChoujianTask extends BaseEntity implements Serializable {
+    /**
+     * 主键
+     */
+    @TableId(value = "id", type = IdType.INPUT)
+    @ApiModelProperty(value="主键")
+    private String id;
+
+    /**
+     * 批次编号(批次id)
+     */
+    @TableField(value = "pc_id")
+    @ApiModelProperty(value="批次编号(批次id)")
+    private String pcId;
+
+    /**
+     * 案卷id
+     */
+    @TableField(value = "aj_id")
+    @ApiModelProperty(value="案卷id")
+    private String ajId;
+
+    /**
+     * 全宗号
+     */
+    @TableField(value = "qzh")
+    @ApiModelProperty(value="全宗号")
+    private String qzh;
+
+    /**
+     * 案卷号
+     */
+    @TableField(value = "ajh")
+    @ApiModelProperty(value="案卷号")
+    private String ajh;
+
+    /**
+     * 编号(档号)
+     */
+    @TableField(value = "dh")
+    @ApiModelProperty(value="编号(档号)")
+    private String dh;
+
+    /**
+     * 抽检人
+     */
+    @TableField(value = "cjr_nx")
+    @ApiModelProperty(value="抽检人")
+    private String cjrNx;
+
+    /**
+     * 领取任务时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @TableField(value = "claim_time")
+    @ApiModelProperty(value="领取任务时间")
+    private Date claimTime;
+
+    /**
+     * 完成任务时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @TableField(value = "finish_time")
+    @ApiModelProperty(value="完成任务时间")
+    private Date finishTime;
+
+    /**
+     * 状态(0:未完成;  1:已完成)
+     */
+    @TableField(value = "task_flag")
+    @ApiModelProperty(value="状态(0:未完成;  1:已完成)")
+    private String taskFlag;
+
+    public static final String COL_ID = "id";
+
+    public static final String COL_PC_ID = "pc_id";
+
+    public static final String COL_AJ_ID = "aj_id";
+
+    public static final String COL_QZH = "qzh";
+
+    public static final String COL_AJH = "ajh";
+
+    public static final String COL_DH = "dh";
+
+    public static final String COL_CJR_NX = "cjr_nx";
+
+    public static final String COL_CLAIM_TIME = "claim_time";
+
+    public static final String COL_FINISH_TIME = "finish_time";
+
+    public static final String COL_TASK_FLAG = "task_flag";
+}

@@ -1,0 +1,22 @@
+package com.fudian.szhjg.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.fudian.szhjg.pojo.TMapper;
+import com.fudian.szhjg.pojo.TMapperExample;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+
+@Mapper
+public interface TMapperMapper extends BaseMapper<TMapper> {
+    long countByExample(TMapperExample example);
+
+    int deleteByExample(TMapperExample example);
+
+    List<TMapper> selectByExample(TMapperExample example);
+
+    int updateByExampleSelective(@Param("record") TMapper record, @Param("example") TMapperExample example);
+
+    int updateByExample(@Param("record") TMapper record, @Param("example") TMapperExample example);
+}

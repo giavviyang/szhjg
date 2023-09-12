@@ -1,0 +1,1009 @@
+<template>
+  <div class="description-container">
+    <!--搜索框-->
+    <div class="description-box">
+      <el-form :model="queryForm" ref="queryForm" size="small" :inline="true" v-hasPermi="['szhjg:sjjg:mlzl:search']">
+        <el-form-item label="选择批次" prop="pcId" >
+          <el-cascader v-model="queryForm.pcId" :options="projectOptions" :props="projectProps" clearable
+                       size="mini" filterable :show-all-levels="false" @change="handleChange"
+                       style="width: 160px;height: 28px;line-height: 28px;">
+          </el-cascader>
+        </el-form-item>
+        <el-form-item label="编号" prop="bianHao">
+          <el-input v-model="queryForm.bianHao" placeholder="请输入查询内容" clearable style="width: 180px" size="mini"
+                    @keyup.enter.native="batchTaskSearch"/>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="el-icon-search" size="mini" @click="batchTaskSearch">搜索</el-button>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" plain icon="el-icon-collection-tag" size="mini" @click="receiveTask"
+                     v-hasPermi="['szhjg:sjjg:mlzl:taskReceive']" style="margin-left:30px;">领取任务</el-button>
+          <el-button type="success" plain icon="el-icon-s-promotion" size="mini" @click="submitTask"
+                     v-hasPermi="['szhjg:sjjg:mlzl:taskSub']">任务提交</el-button>
+          <el-button type="warning" plain icon="el-icon-circle-close" size="mini" @click="submitRework"
+                     v-hasPermi="['szhjg:sjjg:mlzl:taskRework']">返工</el-button>
+          <el-button type="info" plain icon="el-icon-edit-outline" size="mini" @click="viewRecord"
+                     v-hasPermi="['szhjg:sjjg:mlzl:taskRecord']">查看记录</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+    <!--表格-->
+    <div class="description-wrapper">
+      <el-table border v-if="juanFrameColumns.length<=0" height="calc(100vh - 200px)"></el-table>
+      <el-table v-else row-key="id" :data="juanFrameList" border width="100%" ref="juanTable" height="calc(100vh - 200px)"
+                slot="table" @selection-change="juanSelectionChange" @row-click="juanRowClick"  @select="juanSelect"
+                :row-style="juanClass">
+        <el-table-column type="selection" width="40"></el-table-column>
+        <el-table-column align="center"  type="index" label="序号" width="55" :index="juanGetIndex"></el-table-column>
+        <el-table-column align="center" v-for="(item,index) in juanFrameColumns" :key="index" :label="item.label"
+                         :prop="item.prop" :min-width="item.width" :formatter="item.formatter" show-overflow-tooltip>
+        </el-table-column>
+        <el-table-column align="center" label="操作" width="120">
+          <template slot-scope="scope">
+            <el-button type="text" size="mini"  @click="inspection(scope.row)">质检</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="block" style="margin-top: 5px;">
+        <el-pagination :page-sizes="[20, 50, 100, 200]" :page-size="pageSizeJuan" :current-page="pageNumJuan"
+                       layout="total, sizes, prev, pager, next, jumper" :total="totalJuan" @size-change="pageSizeSJuan"
+                       @current-change="pageCurrentJuan" :pager-count="5"/>
+      </div>
+    </div>
+
+    <!--领取任务-->
+    <ViewingReceive v-if="dialogReceive" ref="ViewingReceive" @TaskClaimCloseData="TaskClaimCloseData"></ViewingReceive>
+
+    <!--返工-->
+    <el-dialog title="返工" :visible.sync="dialogReceiveVisible" width="580px" append-to-body resize remember
+               class="dialog-style dialog-basic" :close-on-click-modal="false" :close-on-press-escape="false">
+      <el-form ref="reworkForm" :model="reworkForm" :inline="true" :rules="reworkRules" label-width="80px">
+        <el-form-item label="当前工序" prop="dqgx" >
+          <el-input v-model="reworkForm.dqgx" placeholder="" :disabled="true" clearable size="mini" class="rt-input"
+                    style="width: 180px" />
+        </el-form-item>
+        <el-form-item label="返工工序" prop="reworkId" >
+          <el-select v-model="reworkForm.reworkId" placeholder="选择工序" size="mini" clearable style="width: 180px">
+            <el-option v-for="item in reworkIdOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item><br>
+        <el-form-item label="返工原因" prop="reworkCause" >
+          <el-input v-model="reworkForm.reworkCause" type="textarea" placeholder="请输入返工原因" clearable size="mini"
+                    style="width:450px" :onkeyup="reworkForm.reworkCause = reworkForm.reworkCause.replace(/\s/g,'')"/>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button size="mini" plain  @click="dialogReceiveVisible=false">取 消</el-button>
+        <el-button size="mini" plain type="primary" @click="insertSubmitRework('reworkForm')">确 定</el-button>
+      </div>
+    </el-dialog>
+
+    <!--查看记录-->
+    <ViewingRecord v-if="dialogViewing" ref="ViewingRecord"></ViewingRecord>
+
+    <!--质检(案卷/文件)-->
+    <el-dialog title="文件质检"  width="100%" :visible.sync="dialogFormVisible1" resize remember :close-on-press-escape="false"
+               :close-on-click-modal="false" :destroy-on-close="true" :append-to-body="true"
+               class="dialog-style dialog-basic" >
+      <!--文件信息-->
+      <el-col :span="5" style="height: calc(100vh - 140px);border-right: 1px solid #dfe4ed">
+        <div style="height:40px;padding:10px 10px 0 10px;display:flex;align-items:center;">
+          <div class="form-basic" style="flex:1;">文件信息 :</div>
+          <el-button type="primary" plain size="mini" style="margin-left: 20px;" @click="inspectionCase">案卷质检</el-button>
+        </div>
+        <div style="height: calc(100vh - 180px);padding:5px 10px 10px 10px;">
+          <el-table row-key="id" :data="jianFrameList" border height="calc(100vh - 195px)" slot="table" v-loading="loading"
+                    ref="jianTable" @selection-change="jianSelectionChange" @row-click="jianRowClick" @select="jianSelect"
+                    :row-style="jianClass" :default-expand-all="isExpandAll"
+                    :tree-props="{children: 'children', hasChildren: 'hasChildren'}">
+            <el-table-column type="selection" width="40" ></el-table-column>
+            <el-table-column align="center" type="index" label="序号" width="50"></el-table-column>
+            <el-table-column align="center" v-for="(item,index) in jianFrameColumns" :key="index" :label="item.label"
+                             :prop="item.prop" :min-width="item.width" show-overflow-tooltip :formatter="item.formatter">
+            </el-table-column>
+          </el-table>
+        </div>
+      </el-col>
+      <!--文件详细详细-->
+      <el-col :span="7" style="height: calc(100vh - 140px);border-right: 1px solid #dfe4ed">
+        <div type="border-card" style="height: calc(100vh - 140px);padding: 10px;overflow: auto;">
+          <el-form ref="tablePapers" :model="tablePapers" :inline="true" :rules="PapersRules" label-width="120px">
+            <br>
+            <el-form-item v-for="(item, index) in papersItemList" :label="item.label" :key="index" :prop="item.prop">
+              <el-input v-if="item.type == 'input'" v-model="tablePapers[item.prop]" :placeholder="item.placeholder"
+                        :rules="item.rules" size="mini" :disabled="true" class="rt-input" style="width:200px"></el-input>
+              <el-select v-if="item.type == 'select'" v-model="tablePapers[item.prop]" placeholder="请选择" size="mini"
+                         :disabled="true" class="rt-input" style="width:200px">
+                <el-option
+                  v-for="items in item.options"
+                  :key="items.value"
+                  :label="items.label"
+                  :value="items.value"
+                  :rules="items.rules">
+                </el-option>
+              </el-select>
+              <el-date-picker v-if="item.type == 'date'" v-model="tablePapers[item.prop]" clearable size="mini"
+                              :placeholder="item.placeholder" type="date" value-format="yyyy-MM-dd HH:mm:ss"
+                              :picker-options="pickerOptions" :rules="item.rules" :disabled="true" class="rt-input"
+                              style="width:200px"/>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-col>
+      <!--图片-->
+      <el-col :span="12" style="height: calc(100vh - 140px)">
+        <div class="form-basicimg">
+          <ImgViewr v-if="visible" :visible="visible" :lockScroll="false" :urls="urls" :initialIndex="index"
+                    :on-show="onShow" :on-switch="changeHandle" :closeOnClickMask="false" :on-close="() => (visible = false)"/>
+          <div class="imgtit" v-if="urls.length>0">当前第{{ index + 1 }}张,共有{{ urls.length }}张图片</div>
+          <div class="imgtit" v-else>暂无图片</div>
+        </div>
+      </el-col>
+    </el-dialog>
+
+    <!--案卷信息弹窗-->
+    <el-dialog title="案卷质检" :visible.sync="dialogFormVisible2" width="720px" :close-on-click-modal="false"
+               :close-on-press-escape="false" :destroy-on-close="true" :append-to-body="true"
+               class="dialog-style dialog-basic">
+      <el-col :span="24" style="height: calc(100vh - 400px)">
+        <div style="height:calc(100vh - 400px);padding: 10px;overflow: auto;">
+          <el-form ref="tableTask" :model="tableTask" :inline="true" :rules="TaskRules" label-width="120px">
+            <br>
+            <el-form-item v-for="(item, index) in taskItemList" :label="item.label" :key="index" :prop="item.prop">
+              <el-input v-if="item.type == 'input'" v-model="tableTask[item.prop]" :placeholder="item.placeholder"
+                        :rules="item.rules" size="mini" :disabled="true" class="rt-input" style="width:200px"></el-input>
+              <el-select v-if="item.type == 'select'" v-model="tableTask[item.prop]" placeholder="请选择" size="mini"
+                         :disabled="true" class="rt-input" style="width:200px">
+                <el-option
+                  v-for="items in item.options"
+                  :key="items.value"
+                  :label="items.label"
+                  :value="items.value"
+                  :rules="items.rules">
+                </el-option>
+              </el-select>
+              <el-date-picker v-if="item.type == 'date'" v-model="tableTask[item.prop]" clearable size="mini"
+                              :placeholder="item.placeholder" type="date" value-format="yyyy-MM-dd HH:mm:ss"
+                              :picker-options="pickerOptions" :rules="item.rules" :disabled="true" class="rt-input"
+                              style="width:200px"/>
+            </el-form-item>
+          </el-form>
+        </div>
+      </el-col>
+    </el-dialog>
+
+  </div>
+</template>
+
+<script>
+import {Message} from "element-ui";
+import ViewingReceive from '@/views/szhjg/sjjg/ViewingReceive/index';
+import ViewingRecord from '@/views/szhjg/sjjg/ViewingRecord/index';
+import { getUserProfile } from "@/api/system/user";
+import { queryDisplayGx, queryProjectBatch, selectPictureImage } from "@/api/szhjg/szhjgCommon";
+import { taskDynamicListHead } from "@/api/szhjg/dynamicCommon";
+import { catalogueDescriptionList } from "@/api/szhjg/dynamicCommon";
+import { queryDirectory, queryCasePiece } from "@/api/szhjg/sjjg/sjzj";
+import { processingSubmitPass, queryNextGxName, reworkQueryProject, reworkSubmitPass} from "@/api/szhjg/sjjg/approachCommon";
+import ImgViewr, {showImages} from "vue-img-viewr";
+import 'vue-img-viewr/styles/index.css';
+
+
+const params = {
+  pageNum: 1,
+  pageSize: 20
+}
+export default {
+  name: "index",
+  components:{ ViewingReceive, ViewingRecord, ImgViewr},
+  data() {
+    return {
+      dialogReceive: false,  //领取任务
+      dialogViewing: false,  //查看记录
+      dialogReceiveVisible: false,  //返工
+      dialogFormVisible1: false,
+      dialogFormVisible2: false,
+
+      // 遮罩层
+      loading: true,
+      //搜索
+      queryForm:{
+        pcId: [],
+        bianHao: "",
+        bh: '',
+      },
+      //批次项目信息
+      projectOptions: [],
+      projectProps: {label: 'projectName', value: 'benId', children: 'pcName'},
+      //存放当前登入用户名称
+      acquireNickName: '',
+      //存放批次id
+      batchId: '',
+      //存放案卷id
+      recordsId: '',
+      //存放页面展示工序
+      optionsProcedure: [],
+
+      //存放动态展示输入框字段
+      taskItemList: [],    //案卷
+      tableTask: {},       //案卷存放表格字段
+      TaskRules: {},       //案卷存放验证规则
+      papersItemList: [],    //文件(案件)
+      tablePapers: {},       //文件存放表格字段
+      PapersRules: {},       //文件存放验证规则
+      //时间限制
+      pickerOptions: {
+        disabledDate(time) {
+          return time.getTime() > Date.now();
+        },
+      },
+
+
+      /*****************************     卷级方法      ****************************************************************/
+      totalJuan: 0,
+      pageNumJuan: 1,
+      pageSizeJuan: 20,
+
+      juanGridCheck: [],      //单选--复选框
+      juanCheck: [],          //多选--复选框
+      juanFrameList: [],      //案卷列表
+      juanFrameColumns: [],   //案卷表头
+
+      //返工
+      reworkForm: {
+        dqgx: '', anJuanId: '', reworkId: '', reworkCause: '',
+      },
+      reworkIdOptions: [],
+      reworkRules:{
+        reworkId:[
+          {required: true, message: '返工工序不能为空', trigger: 'blur'},
+        ],
+        reworkCause:[
+          {required: true, message: '返工原因不能为空', trigger: 'blur'},
+          {min: 0, max:300, message: '输入内容长度不得超过300', trigger: 'blur' }
+        ]
+      },
+
+
+      /*****************************     件级方法      ****************************************************************/
+      //案件复选框
+      jianGridCheck: [],
+      //列表
+      jianFrameList: [],
+      //表头
+      jianFrameColumns: [
+        {label: '件号', prop: 'jh', width: '80',
+          formatter: function (row, column, cellValue) {
+            if (row.sfsy === '是') {return row.jh;} else {return '';}
+          }
+        },
+        {label: '页码', prop: 'ym', width: '50'},
+        {label: '页数', prop: 'ys', width: '50'},
+        /*{label: '是否首页', prop: 'sfsy', width: '80', formatter: function (row, column, cellValue) {
+            return cellValue === '是' ? '是' : '';}
+        },*/
+      ],
+      //是否展开，默认全部折叠
+      isExpandAll: false,
+      //重新渲染表格状态
+      refreshTable: true,
+
+      //图片
+      urls: [],
+      index: 0,
+      visible: false,
+
+    }
+  },
+
+  created() {
+    this.getOptionsData();
+    this.queryGxOptions();
+    this.getNickName();
+  },
+  mounted() {},
+
+  watch:{
+    projectOptions(val){
+      this.queryForm.pcId = val[0].benId
+      if(val[0].pcName.length > 0){
+        this.queryForm.pcId = [val[0].benId,val[0].pcName[0].benId]
+      }
+      this.getTableHeaders(this.queryForm.pcId[1]);
+      params.pcId = this.queryForm.pcId[1];
+      this.queryTaskNameList(params);
+      this.batchId = this.queryForm.pcId[1];
+      this.getTaskCatalogueForm(this.queryForm.pcId[1]);
+      this.getPapersCatalogueForm(this.queryForm.pcId[1]);
+    }
+  },
+
+  methods: {
+    //查询当前登入用户
+    getNickName() {
+      getUserProfile().then(response => {
+        this.acquireNickName = response.data.nickName
+      });
+    },
+    //默认查询项目批次
+    getOptionsData() {
+      queryProjectBatch({gxId:8}).then((res) => {
+        this.projectOptions = res.data;
+      })
+    },
+    //查询页面动态展示工序
+    queryGxOptions() {
+      queryDisplayGx().then(res => {
+        this.optionsProcedure = res.map((item) => {
+          return item;
+        });
+      });
+    },
+
+    //切换项目批次之后进行查询
+    handleChange(value) {
+      this.juanFrameColumns = [];
+      this.juanFrameList = [];
+      this.getTableHeaders(value[1]);
+      params.pcId = value[1];
+      this.queryTaskNameList(params);
+      this.batchId = value[1];
+      this.getTaskCatalogueForm(value[1]);
+      this.getPapersCatalogueForm(value[1]);
+    },
+    //查询动态表头展示字段
+    getTableHeaders(dynamic) {
+      taskDynamicListHead({headBatch: dynamic, headPoints: 0, headType: 0}).then((res) => {
+        this.juanFrameColumns = res.data;
+      });
+    },
+
+    //查询获取动态录入表单内容--(案卷)
+    getTaskCatalogueForm(dynamic){
+      this.taskItemList = []
+      this.TaskRules = {}
+      catalogueDescriptionList({headBatch: dynamic, headPoints: 0}).then((res)=>{
+        this.taskItemList = res.data
+        // 根据后台返回的数据生成表单和验证规则
+        this.taskItemList.forEach(item => {
+          this.$set(this.tableTask, item.prop, ''); // 设置表单数据默认值
+          let currentRules = [];
+          if(item.isRequired){
+            currentRules.push({ required: true, message: `${item.label}不能为空`, trigger: 'blur'})
+          }
+          if(item.max || item.min){
+            if(item.pattern){
+              let charLength = item.pattern.replace(/[^0-9]/ig,"")
+              currentRules.push({ pattern: new RegExp(item.pattern.substr(1,item.pattern.length - 2)), message: `输入内容不符合规则`, trigger: 'blur' });
+            }else {
+              currentRules.push({ min: item.min, max: item.max, message: `${item.label}长度在 ${item.min} 到 ${item.max} 个字符`, trigger: 'blur' });
+            }
+          }
+          if(currentRules.length > 0){
+            this.$set(this.TaskRules, item.prop, currentRules); // 设置验证规则
+          }
+        })
+      })
+    },
+    //查询获取动态录入表单内容--(文件)
+    getPapersCatalogueForm(dynamic){
+      this.papersItemList = []
+      this.PapersRules = {}
+      catalogueDescriptionList({headBatch: dynamic, headPoints: 1}).then((res)=>{
+        this.papersItemList = res.data
+        // 根据后台返回的数据生成表单和验证规则
+        this.papersItemList.forEach(item => {
+          this.$set(this.tablePapers, item.prop, ''); // 设置表单数据默认值
+          let currentRules = [];
+          if(item.isRequired){
+            currentRules.push({ required: true, message: `${item.label}不能为空`, trigger: 'blur'})
+          }
+          if(item.max || item.min){
+            if(item.pattern){
+              let charLength = item.pattern.replace(/[^0-9]/ig,"")
+              currentRules.push({ pattern: new RegExp(item.pattern.substr(1,item.pattern.length - 2)), message: `输入内容不符合规则`, trigger: 'blur' });
+            }else {
+              currentRules.push({ min: item.min, max: item.max, message: `${item.label}长度在 ${item.min} 到 ${item.max} 个字符`, trigger: 'blur' });
+            }
+          }
+          if(currentRules.length > 0){
+            this.$set(this.PapersRules, item.prop, currentRules); // 设置验证规则
+          }
+        })
+      })
+    },
+
+
+    /*****************************     案卷方法      *******************************************************************/
+    //搜索
+    batchTaskSearch(){
+      let params = {
+        pageNum: 1,
+        pageSize: 20,
+        pcId: this.queryForm.pcId[1],
+        bh:this.queryForm.bianHao,
+      }
+      this.queryTaskNameList(params);
+    },
+    queryTaskNameList(params){
+      const _this = this;
+      queryDirectory(params, {emulateJSON: true}).then(function (response) {
+        if(response.rows != undefined && response.rows != "" && response.rows != null){
+          response.rows.forEach((value, index) => {
+            const arr = _this.optionsProcedure;
+            for (var i in arr) {
+              if (value.dqgx == arr[i].value) {
+                value.dqgx = arr[i].label;
+              }
+            }
+          })
+        }
+        _this.juanFrameList = response.rows;
+        _this.totalJuan = response.total;
+        _this.loading = false;
+      })
+    },
+
+    //分页
+    pageCurrentJuan(val) {
+      this.pageNumJuan = val
+      params.pageNum = val
+      params.pageSize = this.pageSizeJuan;
+      params.pcId = this.queryForm.pcId[1];
+      params.bh = this.queryForm.bianHao;
+      this.queryTaskNameList(params)
+    },
+    pageSizeSJuan(val) {
+      this.pageSizeJuan = val
+      params.pageSize = val;
+      params.pageNum = this.pageNumJuan;
+      params.pcId = this.queryForm.pcId[1];
+      params.bh = this.queryForm.bianHao;
+      this.queryTaskNameList(params)
+    },
+
+    //复选框事件
+    juanSelectionChange(val) {
+      this.juanGridCheck = val;
+    },
+    //行点击事件
+    juanRowClick(row, column, event) {
+      this.$refs.juanTable.clearSelection();
+      if (this.juanGridCheck.length === 0) {
+        this.$refs.juanTable.toggleRowSelection(row)
+        return;
+      }
+      this.$refs.juanTable.toggleRowSelection(row)
+    },
+    async juanSelect(selection, row) {
+      // 执行完清空操作在进行下面的勾选
+      await this.$refs.juanTable.clearSelection();
+      if (selection.length === 0) return;
+      this.$refs.juanTable.toggleRowSelection(row, true);
+    },
+    juanClass( { row,rowIndex }) {
+      if (this.juanGridCheck.includes(row)){
+        return {"background":"#b9deff !important", "color": "blue",}
+      } else {
+        return {"——tablebackground" : "#F5F7FA",}
+      }
+    },
+    //翻页后序号连贯
+    juanGetIndex($index) {
+      return (this.pageNumJuan - 1) * this.pageSizeJuan + $index + 1;
+    },
+
+    //领取任务
+    receiveTask(){
+      this.dialogReceive = true;
+      let gxId = "8";
+      this.$nextTick(() => {
+        this.$refs.ViewingReceive.init(gxId);
+      });
+    },
+    //关闭页面弹窗重新刷新
+    TaskClaimCloseData(val) {
+      this.batchTaskSearch();
+    },
+    //任务提交
+    submitTask(){
+      const _this = this;
+      if (this.juanGridCheck.length == 1){
+        let a = this.juanGridCheck[0].id;
+        queryNextGxName({id:a, gxName:8}).then(response =>{
+          var o;
+          if (response.msg =="数据质检"){
+            if(this.juanGridCheck[0].cataloged =="是"){
+              o = "当前工序 :数据质检。已是最后一道工序,是否提交!"
+            }else {
+              this.$message({message: '当前工序 :数据质检。已是最后一道工序，未进行目录著录，无法提交完成！', duration: 3000, type: 'error'});
+              return;
+            }
+          }else {
+            o = "当前工序：数据质检，下一道工序为："+response.msg+"。是否提交!"
+          }
+          this.$confirm(o, '提示', {
+            confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
+          }).then(() => {
+            processingSubmitPass({ajId:a, gxId:8}).then(response =>{
+              if (response.code == 200) {
+                _this.$message({message:"提交成功", type: 'success'})
+                _this.batchTaskSearch();
+                _this.subdivisionList = [];
+                _this.totalSub = 0;
+              } else {
+                this.$message({message: "提交失败", type: 'error'});
+              }
+            })
+          }).catch(() => {});
+        })
+      }else {
+        Message.warning("请选择一条任务!");
+      }
+    },
+    //任务返工
+    submitRework(){
+      if (this.juanGridCheck.length == 1){
+        this.dialogReceiveVisible = true;
+        let anJuanId = this.juanGridCheck[0].id;
+        this.reworkForm.anJuanId = anJuanId;
+        reworkQueryProject({ajId:anJuanId}).then(res => {
+          this.reworkIdOptions = res.map((item) => {
+            return item
+          });
+          this.reworkForm.dqgx = this.juanGridCheck[0].dqgx;
+        });
+      }else {
+        Message.warning("请选择一条任务!");
+      }
+    },
+    insertSubmitRework(reworkForm){
+      const _this = this;
+      this.$refs["reworkForm"].validate((valid) => {
+        if (valid) {
+          reworkSubmitPass(this.reworkForm).then(response => {
+            if (response.code == 200) {
+              _this.$message({message:"返工提交成功", type: 'success'})
+              _this.batchTaskSearch();
+              _this.dialogReceiveVisible = false;
+            } else {
+              this.$message({message: "返工提交失败", type: 'error'});
+            }
+          })
+        } else {
+          return false;
+        }
+      })
+    },
+    //查看记录
+    viewRecord(){
+      this.dialogViewing = true;
+      let gxId = "8";
+      this.$nextTick(() => {
+        this.$refs.ViewingRecord.init(gxId);
+      });
+    },
+
+
+    /*****************************     质检(案卷/文件)方法      ********************************************************/
+    //质检查询
+    inspection(val){
+      this.queryCaseList(val.id)
+      this.dialogFormVisible1 = true;
+    },
+    //质检关闭页面弹窗
+    beforeClose(){
+      this.urls = [];
+      this.index = 0;
+      this.dialogFormVisible1 = false;
+    },
+
+    //案卷质检弹窗
+    inspectionCase(){
+      this.tableTask = this.juanGridCheck[0];
+      this.dialogFormVisible2 = true;
+    },
+
+
+    /*****************************     文件方法      *******************************************************************/
+    //查询文件信息
+    queryCaseList(val){
+      const _this = this
+      let params = {
+        ajId:val,
+      }
+      queryCasePiece(params, {emulateJSON: true}).then(function (response) {
+        _this.jianFrameList = response.rows;
+        _this.loading = false;
+      })
+    },
+    //复选框事件
+    jianSelectionChange(val) {
+      this.jianGridCheck = val;
+      if (this.jianGridCheck.length == 1){
+        if (this.jianGridCheck[0].sfsy==="是"){
+          this.getImage(this.jianGridCheck[0]);
+          this.tablePapers = this.jianGridCheck[0];
+        }else {
+          this.leafletImage(this.jianGridCheck[0]);
+        }
+      }
+
+    },
+    //行点击事件
+    jianRowClick(row, column) {
+      this.$refs.jianTable.clearSelection();
+      if (this.jianGridCheck.length === 0) {
+        this.$refs.jianTable.toggleRowSelection(row)
+        return;
+      }
+      this.$refs.jianTable.toggleRowSelection(row)
+    },
+    async jianSelect(selection, row) {
+      // 执行完清空操作在进行下面的勾选
+      await this.$refs.jianTable.clearSelection();
+      if (selection.length === 0) return;
+      this.$refs.jianTable.toggleRowSelection(row, true);
+    },
+    jianClass( { row,rowIndex }) {
+      if (this.jianGridCheck.includes(row)){
+        return {"background":"#b9deff !important", "color": "blue",}
+      } else {
+        return {"——tablebackground" : "#F5F7FA",}
+      }
+    },
+
+
+    /*****************************     图片方法      *******************************************************************/
+    // 通过组件方式
+    showImagesByComponent(index) {
+      this.visible = true
+      this.index = index|0
+    },
+    onShow(isShow) {
+      //console.log(isShow)
+    },
+    changeHandle(i) {
+      this.index = i
+      //console.log(`current image index: ${i}`)
+    },
+    showImagesByJs(index) {
+      // 通过js方式显示
+      showImages({
+        urls: this.urls,
+        index,
+        onShow: this.onShow,
+        /*onClose: () => {
+          console.log('close with js')
+          return true
+        },*/
+      })
+    },
+    //查看图片
+    getImage(row){
+      selectPictureImage({jh:row.jh,ajId:row.ajId}).then((res)=>{
+        this.urls = res.data.imgs.map((item, index) => {
+          return `${process.env.VUE_APP_BASE_API}/szhjgCommonController/ioReadImg2?url=${encodeURIComponent(item)}`;
+        });
+        this.showImagesByComponent()
+      })
+    },
+    //查看单张图片
+    leafletImage(row){
+      this.urls = [`${process.env.VUE_APP_BASE_API}/szhjgCommonController/ioReadImg2?url=${encodeURIComponent(row.tpdz)}`];
+      this.showImagesByComponent();
+    },
+
+
+
+  }
+
+}
+</script>
+
+<style scoped lang="scss">
+.description-container {
+  padding: 10px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  .github-corner {
+    position: absolute;
+    top: 0;
+    border: 0;
+    right: 0;
+  }
+  .description-box {
+    width: 1000px;
+    height: 38px;
+    padding: 3px 0 3px 0;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    //background-color: #f0f0f0;
+    .el-form-item--small.el-form-item{
+      margin-bottom: 5px;
+    }
+  }
+  .description-wrapper {
+    width: 100%;
+    height: calc(100% - 42px);
+    //background-color: #f0f0f0;
+    .description-basic {
+      //padding-left: 10px;
+      //margin-bottom: 5px;
+      line-height: 20px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+  }
+}
+
+.el-form-item--small.el-form-item{
+  margin-bottom: 5px;
+}
+
+::v-deep .el-tabs__content {
+  padding: 10px;
+  height: calc(100vh - 140px);
+  overflow: auto;
+}
+
+.block {
+  float: right;
+  height: 38px;
+  text-align: right;
+  ::v-deep .el-pagination {
+    height: 28px;
+    //position: relative;
+    //margin-top: 5px;
+    font-size: 12px;
+    & > .el-pagination__total {
+      font-size: 12px;
+    }
+    & > .el-pagination__sizes {
+      .el-input {
+        input {
+          font-size: 12px;
+          height: 26px;
+        }
+      }
+    }
+    button {
+      background-color: transparent;
+    }
+    & > .el-pager {
+      li {
+        font-size: 12px;
+        background-color: transparent;
+      }
+    }
+    & > .el-pagination__jump {
+      font-size: 12px;
+      .el-input {
+        input {
+          font-size: 12px;
+          height: 26px;
+        }
+      }
+    }
+  }
+}
+
+::v-deep .el-table {
+  border-right:1px solid #dfe6ec;
+  color: #515a6e;
+  & > .el-table__header-wrapper {
+    & > table {
+      tr:first-of-type {
+        th {
+          background: rgba(204, 204, 204, 0.18);
+          color: #515a6e;
+          font-size: 12px;
+          //text-align: center;
+          height: 34px !important;
+          padding: 5px 0 !important;
+        }
+      }
+      tr:nth-of-type(2) {
+        th {
+          background: #fff;
+          //background: rgba(204, 204, 204, 0.05);
+          color: #515a6e;
+          font-size: 12px;
+          text-align: center;
+          padding: 0 !important;
+          height: 34px;
+          .el-input__inner {
+            border: none;
+            padding: 0;
+            height: 20px;
+          }
+        }
+      }
+      & > colgroup {
+        col {
+          &:last-of-type {
+            width: 17px !important;
+          }
+        }
+      }
+    }
+  }
+  .el-table__body-wrapper {
+    overflow: auto !important;
+    //border-right: 1px solid #dfe6ec;
+    //width: calc(100% - 1px);
+    .el-table__row {
+      td {
+        text-align: center;
+        font-size: 12px;
+        padding: 5px 0 !important;
+        &:last-child {
+          .cell {
+            display: flex;
+            //margin: 0 5px;
+            //flex-direction: column;
+            justify-content: space-around;
+            width: 100%;
+            white-space:nowrap;
+            overflow:hidden;
+            text-overflow: ellipsis;
+            //padding: 0;
+            .el-button {
+              width: 100%;
+              height: 100%;
+              position: relative;
+              top: 0;
+              right: 0;
+              //padding: 0;
+              margin: 0 2px;
+              //span{
+              //  display: inline-block;
+              //  height: 100%;
+              //}
+            }
+          }
+        }
+      }
+    }
+  }
+  //滚动条
+  /**滚动条的宽度*/
+  ::-webkit-scrollbar {
+    width: 10px !important; /*竖向*/
+    height: 10px !important; /*横向*/
+  }
+  /*滚动条的滑块*/
+  ::-webkit-scrollbar-thumb {
+    background-color: #ddd !important;
+    border-radius: 8px !important;
+  }
+}
+
+::v-deep .el-table tbody tr:hover>td {
+  background: var(--tablebackground) !important;
+}
+
+//弹框样式
+.dialog-style {
+  ::v-deep .el-dialog__body {
+    padding: 0;
+  }
+  ::v-deep .el-dialog__header {
+    background: rgba(204, 204, 204, 0.18);
+    padding: 10px;
+  }
+  ::v-deep .el-dialog__title {
+    font-weight: 500;
+    font-size: 15px
+  }
+  ::v-deep .el-dialog__headerbtn {
+    top: 13px;
+  }
+  ::v-deep .el-dialog__footer {
+    background: rgba(204, 204, 204, 0.18);
+    padding-right: 15px;
+    padding: 8px;
+  }
+  ::v-deep .el-button + .el-button {
+    margin-left: 6px;
+  }
+}
+// 基本信息弹框
+.dialog-basic {
+  margin-left: 10px;
+  .form-basic {
+    //margin-bottom: 5px;
+    line-height: 25px;
+    //border-bottom: 1px solid #ccc;
+    //margin-left: 15px;
+    //margin-right: 15px;
+    font-size: 14px;
+    font-weight: bold;
+  }
+
+  .form-basicimg{
+    position: relative;
+    height: 100%;
+    //margin-bottom: 5px;
+    line-height: 25px;
+    //border-bottom: 1px solid #ccc;
+    //margin-left: 15px;
+    //margin-right: 15px;
+    font-size: 14px;
+    font-weight: bold;
+    .img-viewr__wrapper{
+      position: absolute;
+    }
+    ::v-deep .icon__circle-close{
+      display: none;
+    }
+    ::v-deep .img-viewr__canvas{
+      overflow: hidden;
+    }
+    .imgs {
+      display: flex;
+    }
+    .img {
+      width: 150px;
+      height: 100px;
+      border: 1px solid #EEE;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px;
+    }
+    .img img {
+      max-width: 100%;
+      max-height: 100%;
+      cursor: pointer;
+    }
+
+    .imgtit {
+      position: absolute;
+      width: 100%;
+      z-index: 999999;
+      text-align: center;
+      bottom: 5px;
+      font-size:17px;
+      font-weight: 700;
+      text-shadow: -1px 1px 0 #fff, 1px 1px 0 #fff, 1px -1px 0 #fff, -1px -1px 0 #fff;
+    }
+  }
+}
+//弹窗样式修改
+::v-deep .el-dialog {
+  display: flex;
+  flex-direction: column;
+  margin: 0 !important;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-height: calc(100% - 30px);
+  max-width: calc(100% - 30px);
+}
+
+::v-deep .el-table tbody tr:hover>td {
+  background: var(--tablebackground) !important;
+}
+
+//表格鼠标悬浮时的样式 （高亮）
+::v-deep  {
+  .el-table--enable-row-hover {
+    .el-table__body tr {
+      &:hover {
+        background: rgb(223 239 253);
+        border: 1px solid #313463;
+      }
+    }
+  }
+}
+
+//禁止输入框输入,字体颜色黑色
+.rt-input ::v-deep .el-input__inner{
+  color:  #000000;
+}
+
+</style>

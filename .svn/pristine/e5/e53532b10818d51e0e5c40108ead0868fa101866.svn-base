@@ -1,0 +1,107 @@
+package com.fudian.szhjg.controller;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.szhjg.busiservice.CheckService;
+import com.fudian.szhjg.mapper.TTaskPieceMapper;
+import com.fudian.szhjg.pojo.TChoujianTask;
+import com.fudian.szhjg.pojo.TTaskPiece;
+import com.fudian.szhjg.service.TTaskPieceService;
+import com.fudian.szhjg.templateMode.CommonTemplate;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+import java.util.Map;
+
+@Api(tags = "A62  抽检")
+@RestController
+@RequestMapping("/spot/check")
+public class CheckController {
+
+    @Autowired
+    private TTaskPieceService tTaskPieceService;
+    @Autowired
+    private TTaskPieceMapper tTaskPieceMapper;
+
+    @Autowired
+    private CheckService checkService;
+
+    /**抽检查询案卷信息列表
+     * 2023-03-22
+     * @param choujianTask
+     * @return
+     */
+    @ApiOperation("查看抽检案卷信息列表")
+    @GetMapping("/queryRandomCase")
+    @ResponseBody
+    public CommonGridResult queryRandomCase(TChoujianTask choujianTask){
+        choujianTask.setTaskFlag("0");
+        return checkService.queryRandomCase(choujianTask);
+    }
+
+    /**查询案件信息
+     * 2023-03-23
+     * @param tTaskPiece
+     * @return
+     */
+    @ApiOperation("查询案件信息")
+    @GetMapping("/queryCaseInspection")
+    @ResponseBody
+    public CommonGridResult queryCaseInspection(TTaskPiece tTaskPiece){
+        CommonTemplate commonTemplate = new CommonTemplate(tTaskPiece,tTaskPieceService,tTaskPieceMapper);
+        LambdaQueryWrapper<TTaskPiece> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(TTaskPiece::getAjId,tTaskPiece.getAjId()).eq(TTaskPiece::getSfsy,"是");
+        wrapper.orderByAsc(TTaskPiece::getYm);
+        CommonGridResult commonGridResult = commonTemplate.list(wrapper);
+        return commonGridResult;
+    }
+
+    @ApiOperation("完成抽检")
+    @GetMapping("/completeSpotCheck")
+    public CommonResult completeSpotCheck(String id){
+        return checkService.completeSpotCheck(id);
+    }
+
+    @ApiOperation("一键完成")
+    @GetMapping("/completeClickList")
+    public CommonResult completeClickList(){
+        return checkService.completeClickList();
+    }
+
+    @ApiOperation("查看抽检案卷历史信息列表")
+    @GetMapping("/queryRandomHistory")
+    @ResponseBody
+    public CommonGridResult queryRandomHistory(TChoujianTask choujianTask){
+        choujianTask.setTaskFlag("1");
+        return checkService.queryRandomCase(choujianTask);
+    }
+
+    @ApiOperation("历史抽检回退")
+    @GetMapping("/spotCheckRollback")
+    public CommonResult spotCheckRollback(String id){
+        return checkService.spotCheckRollback(id);
+    }
+
+
+    @ApiOperation("抽检页面查询抽检人")
+    @GetMapping("/querySamplingPeople")
+    public List<Map<String, String>> querySamplingPeople() {
+        return checkService.querySamplingPeople();
+    }
+
+    @ApiOperation("抽检历史记录中查询抽检时间")
+    @GetMapping("/querySamplingTime")
+    public List<Map<String, String>> querySamplingTime() {
+        return checkService.querySamplingTime();
+    }
+
+
+
+}

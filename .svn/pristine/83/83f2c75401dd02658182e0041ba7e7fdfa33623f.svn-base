@@ -1,0 +1,420 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fudian.szhjg.mapper.TJianjiMapper">
+  <resultMap id="BaseResultMap" type="com.fudian.szhjg.pojo.TJianji">
+    <!--@mbg.generated-->
+    <!--@Table t_jianji-->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="aj_id" jdbcType="VARCHAR" property="ajId" />
+    <result column="jh" jdbcType="VARCHAR" property="jh" />
+    <result column="ksys" jdbcType="INTEGER" property="ksys" />
+    <result column="zzys" jdbcType="INTEGER" property="zzys" />
+    <result column="ym" jdbcType="INTEGER" property="ym" />
+    <result column="ys" jdbcType="INTEGER" property="ys" />
+    <result column="sfsy" jdbcType="CHAR" property="sfsy" />
+    <result column="tpdz" jdbcType="VARCHAR" property="tpdz" />
+    <result column="xgyj" jdbcType="VARCHAR" property="xgyj" />
+    <result column="create_by" jdbcType="VARCHAR" property="createBy" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_by" jdbcType="VARCHAR" property="updateBy" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="bh" jdbcType="VARCHAR" property="bh" />
+    <result column="field1" jdbcType="VARCHAR" property="field1" />
+    <result column="field2" jdbcType="VARCHAR" property="field2" />
+    <result column="field3" jdbcType="VARCHAR" property="field3" />
+    <result column="field4" jdbcType="VARCHAR" property="field4" />
+    <result column="field5" jdbcType="VARCHAR" property="field5" />
+    <result column="field6" jdbcType="VARCHAR" property="field6" />
+    <result column="field7" jdbcType="VARCHAR" property="field7" />
+    <result column="field8" jdbcType="VARCHAR" property="field8" />
+    <result column="field9" jdbcType="VARCHAR" property="field9" />
+    <result column="field10" jdbcType="VARCHAR" property="field10" />
+    <result column="field11" jdbcType="VARCHAR" property="field11" />
+    <result column="field12" jdbcType="VARCHAR" property="field12" />
+    <result column="field13" jdbcType="VARCHAR" property="field13" />
+    <result column="field14" jdbcType="VARCHAR" property="field14" />
+    <result column="field15" jdbcType="VARCHAR" property="field15" />
+    <result column="field16" jdbcType="VARCHAR" property="field16" />
+    <result column="field17" jdbcType="VARCHAR" property="field17" />
+    <result column="field18" jdbcType="VARCHAR" property="field18" />
+    <result column="field19" jdbcType="VARCHAR" property="field19" />
+    <result column="field20" jdbcType="VARCHAR" property="field20" />
+    <result column="field21" jdbcType="VARCHAR" property="field21" />
+    <result column="field22" jdbcType="VARCHAR" property="field22" />
+    <result column="field23" jdbcType="VARCHAR" property="field23" />
+    <result column="field24" jdbcType="VARCHAR" property="field24" />
+    <result column="field25" jdbcType="VARCHAR" property="field25" />
+    <result column="field26" jdbcType="VARCHAR" property="field26" />
+    <result column="field27" jdbcType="VARCHAR" property="field27" />
+    <result column="field28" jdbcType="VARCHAR" property="field28" />
+    <result column="field29" jdbcType="VARCHAR" property="field29" />
+    <result column="field30" jdbcType="VARCHAR" property="field30" />
+    <result column="time1" jdbcType="TIMESTAMP" property="time1" />
+    <result column="time2" jdbcType="TIMESTAMP" property="time2" />
+    <result column="time3" jdbcType="TIMESTAMP" property="time3" />
+    <result column="time4" jdbcType="TIMESTAMP" property="time4" />
+    <result column="time5" jdbcType="TIMESTAMP" property="time5" />
+    <result column="int_1" jdbcType="INTEGER" property="int1" />
+    <result column="int_2" jdbcType="INTEGER" property="int2" />
+    <result column="int_3" jdbcType="INTEGER" property="int3" />
+    <result column="int_4" jdbcType="INTEGER" property="int4" />
+    <result column="int_5" jdbcType="INTEGER" property="int5" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="example.oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, aj_id, jh, ksys, zzys, ym, ys, sfsy, tpdz, xgyj, create_by, create_time, update_by, 
+    update_time, bh, field1, field2, field3, field4, field5, field6, field7, field8,
+    field9, field10, field11, field12, field13, field14, field15, field16, field17, field18,
+    field19, field20, field21, field22, field23, field24, field25, field26, field27,
+    field28, field29, field30, time1, time2, time3, time4, time5, int_1, int_2, int_3,
+    int_4, int_5
+  </sql>
+  <select id="selectByExample" parameterType="com.fudian.szhjg.pojo.TJianjiExample" resultMap="BaseResultMap">
+    <!--@mbg.generated-->
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    from t_jianji
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <delete id="deleteByExample" parameterType="com.fudian.szhjg.pojo.TJianjiExample">
+    <!--@mbg.generated-->
+    delete from t_jianji
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <select id="countByExample" parameterType="com.fudian.szhjg.pojo.TJianjiExample" resultType="java.lang.Long">
+    <!--@mbg.generated-->
+    select count(*) from t_jianji
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map">
+    <!--@mbg.generated-->
+    update t_jianji
+    <set>
+      <if test="record.id != null">
+        id = #{record.id,jdbcType=VARCHAR},
+      </if>
+      <if test="record.ajId != null">
+        aj_id = #{record.ajId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.jh != null">
+        jh = #{record.jh,jdbcType=VARCHAR},
+      </if>
+      <if test="record.ksys != null">
+        ksys = #{record.ksys,jdbcType=INTEGER},
+      </if>
+      <if test="record.zzys != null">
+        zzys = #{record.zzys,jdbcType=INTEGER},
+      </if>
+      <if test="record.ym != null">
+        ym = #{record.ym,jdbcType=INTEGER},
+      </if>
+      <if test="record.ys != null">
+        ys = #{record.ys,jdbcType=INTEGER},
+      </if>
+      <if test="record.sfsy != null">
+        sfsy = #{record.sfsy,jdbcType=CHAR},
+      </if>
+      <if test="record.tpdz != null">
+        tpdz = #{record.tpdz,jdbcType=VARCHAR},
+      </if>
+      <if test="record.xgyj != null">
+        xgyj = #{record.xgyj,jdbcType=VARCHAR},
+      </if>
+      <if test="record.createBy != null">
+        create_by = #{record.createBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.createTime != null">
+        create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.updateBy != null">
+        update_by = #{record.updateBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.updateTime != null">
+        update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.bh != null">
+        bh = #{record.bh,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field1 != null">
+        field1 = #{record.field1,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field2 != null">
+        field2 = #{record.field2,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field3 != null">
+        field3 = #{record.field3,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field4 != null">
+        field4 = #{record.field4,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field5 != null">
+        field5 = #{record.field5,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field6 != null">
+        field6 = #{record.field6,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field7 != null">
+        field7 = #{record.field7,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field8 != null">
+        field8 = #{record.field8,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field9 != null">
+        field9 = #{record.field9,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field10 != null">
+        field10 = #{record.field10,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field11 != null">
+        field11 = #{record.field11,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field12 != null">
+        field12 = #{record.field12,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field13 != null">
+        field13 = #{record.field13,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field14 != null">
+        field14 = #{record.field14,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field15 != null">
+        field15 = #{record.field15,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field16 != null">
+        field16 = #{record.field16,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field17 != null">
+        field17 = #{record.field17,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field18 != null">
+        field18 = #{record.field18,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field19 != null">
+        field19 = #{record.field19,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field20 != null">
+        field20 = #{record.field20,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field21 != null">
+        field21 = #{record.field21,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field22 != null">
+        field22 = #{record.field22,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field23 != null">
+        field23 = #{record.field23,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field24 != null">
+        field24 = #{record.field24,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field25 != null">
+        field25 = #{record.field25,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field26 != null">
+        field26 = #{record.field26,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field27 != null">
+        field27 = #{record.field27,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field28 != null">
+        field28 = #{record.field28,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field29 != null">
+        field29 = #{record.field29,jdbcType=VARCHAR},
+      </if>
+      <if test="record.field30 != null">
+        field30 = #{record.field30,jdbcType=VARCHAR},
+      </if>
+      <if test="record.time1 != null">
+        time1 = #{record.time1,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.time2 != null">
+        time2 = #{record.time2,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.time3 != null">
+        time3 = #{record.time3,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.time4 != null">
+        time4 = #{record.time4,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.time5 != null">
+        time5 = #{record.time5,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.int1 != null">
+        int_1 = #{record.int1,jdbcType=INTEGER},
+      </if>
+      <if test="record.int2 != null">
+        int_2 = #{record.int2,jdbcType=INTEGER},
+      </if>
+      <if test="record.int3 != null">
+        int_3 = #{record.int3,jdbcType=INTEGER},
+      </if>
+      <if test="record.int4 != null">
+        int_4 = #{record.int4,jdbcType=INTEGER},
+      </if>
+      <if test="record.int5 != null">
+        int_5 = #{record.int5,jdbcType=INTEGER},
+      </if>
+    </set>
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map">
+    <!--@mbg.generated-->
+    update t_jianji
+    set id = #{record.id,jdbcType=VARCHAR},
+      aj_id = #{record.ajId,jdbcType=VARCHAR},
+      jh = #{record.jh,jdbcType=VARCHAR},
+      ksys = #{record.ksys,jdbcType=INTEGER},
+      zzys = #{record.zzys,jdbcType=INTEGER},
+      ym = #{record.ym,jdbcType=INTEGER},
+      ys = #{record.ys,jdbcType=INTEGER},
+      sfsy = #{record.sfsy,jdbcType=CHAR},
+      tpdz = #{record.tpdz,jdbcType=VARCHAR},
+      xgyj = #{record.xgyj,jdbcType=VARCHAR},
+      create_by = #{record.createBy,jdbcType=VARCHAR},
+      create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      update_by = #{record.updateBy,jdbcType=VARCHAR},
+      update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      bh = #{record.bh,jdbcType=VARCHAR},
+      field1 = #{record.field1,jdbcType=VARCHAR},
+      field2 = #{record.field2,jdbcType=VARCHAR},
+      field3 = #{record.field3,jdbcType=VARCHAR},
+      field4 = #{record.field4,jdbcType=VARCHAR},
+      field5 = #{record.field5,jdbcType=VARCHAR},
+      field6 = #{record.field6,jdbcType=VARCHAR},
+      field7 = #{record.field7,jdbcType=VARCHAR},
+      field8 = #{record.field8,jdbcType=VARCHAR},
+      field9 = #{record.field9,jdbcType=VARCHAR},
+      field10 = #{record.field10,jdbcType=VARCHAR},
+      field11 = #{record.field11,jdbcType=VARCHAR},
+      field12 = #{record.field12,jdbcType=VARCHAR},
+      field13 = #{record.field13,jdbcType=VARCHAR},
+      field14 = #{record.field14,jdbcType=VARCHAR},
+      field15 = #{record.field15,jdbcType=VARCHAR},
+      field16 = #{record.field16,jdbcType=VARCHAR},
+      field17 = #{record.field17,jdbcType=VARCHAR},
+      field18 = #{record.field18,jdbcType=VARCHAR},
+      field19 = #{record.field19,jdbcType=VARCHAR},
+      field20 = #{record.field20,jdbcType=VARCHAR},
+      field21 = #{record.field21,jdbcType=VARCHAR},
+      field22 = #{record.field22,jdbcType=VARCHAR},
+      field23 = #{record.field23,jdbcType=VARCHAR},
+      field24 = #{record.field24,jdbcType=VARCHAR},
+      field25 = #{record.field25,jdbcType=VARCHAR},
+      field26 = #{record.field26,jdbcType=VARCHAR},
+      field27 = #{record.field27,jdbcType=VARCHAR},
+      field28 = #{record.field28,jdbcType=VARCHAR},
+      field29 = #{record.field29,jdbcType=VARCHAR},
+      field30 = #{record.field30,jdbcType=VARCHAR},
+      time1 = #{record.time1,jdbcType=TIMESTAMP},
+      time2 = #{record.time2,jdbcType=TIMESTAMP},
+      time3 = #{record.time3,jdbcType=TIMESTAMP},
+      time4 = #{record.time4,jdbcType=TIMESTAMP},
+      time5 = #{record.time5,jdbcType=TIMESTAMP},
+      int_1 = #{record.int1,jdbcType=INTEGER},
+      int_2 = #{record.int2,jdbcType=INTEGER},
+      int_3 = #{record.int3,jdbcType=INTEGER},
+      int_4 = #{record.int4,jdbcType=INTEGER},
+      int_5 = #{record.int5,jdbcType=INTEGER}
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+
+  <insert id="insertPiece" parameterType="com.fudian.szhjg.pojo.TJianji">
+     insert into t_jianji
+        ( id, aj_id, jh, ksys, zzys, ym, ys, sfsy, tpdz, xgyj, create_by, create_time, update_by, update_time, bh,
+          field1, field2, field3, field4, field5, field6, field7, field8, field9, field10, field11, field12, field13,
+          field14, field15, field16, field17, field18, field19, field20, field21, field22, field23, field24, field25,
+          field26, field27, field28, field29, field30, time1, time2, time3, time4, time5, int_1, int_2, int_3, int_4,
+          int_5 ) values
+        <foreach collection="list" item="piece" separator=",">
+          (#{piece.id},#{piece.ajId},#{piece.jh},#{piece.ksys},#{piece.zzys},#{piece.ym},#{piece.ys},#{piece.sfsy},
+           #{piece.tpdz},#{piece.xgyj},#{piece.createBy},#{piece.createTime},#{piece.updateBy},#{piece.updateTime},
+           #{piece.bh},#{piece.field1},#{piece.field2},#{piece.field3},#{piece.field4},#{piece.field5},#{piece.field6},
+           #{piece.field7},#{piece.field8},#{piece.field9},#{piece.field10},#{piece.field11},#{piece.field12},
+           #{piece.field13},#{piece.field14},#{piece.field15},#{piece.field16},#{piece.field17},#{piece.field18},
+           #{piece.field19},#{piece.field20},#{piece.field21},#{piece.field22},#{piece.field23},#{piece.field24},
+           #{piece.field25},#{piece.field26},#{piece.field27},#{piece.field28},#{piece.field29},#{piece.field30},
+           #{piece.time1},#{piece.time2},#{piece.time3},#{piece.time4},#{piece.time5},
+           #{piece.int1},#{piece.int2},#{piece.int3},#{piece.int4},#{piece.int5})
+        </foreach>
+  </insert>
+  <update id="updateCustomize" parameterType="com.fudian.szhjg.pojo.TJianji">
+      update t_jianji set ksys=null, zzys=null, ys=null WHERE id = #{id}
+  </update>
+</mapper>

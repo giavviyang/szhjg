@@ -1,0 +1,19 @@
+package com.fudian.szhjg.busiservice;
+
+import com.fudian.common.pojo.CommonResult;
+import com.fudian.szhjg.pojo.TGrgzltj;
+import com.fudian.szhjg.pojo.vo.CountVO;
+import com.fudian.szhjg.pojo.vo.StatisticsVO;
+
+import java.util.List;
+
+public interface StatisticsCountService {
+
+    //个人工作统计
+    List<TGrgzltj> individualWorkload(StatisticsVO statisticsVO);
+
+    //批次产量查询完成项目选择框
+    List<Object> batchYieldProject();
+    //批次产量统计
+    List<CountVO> batchYieldStatistics(StatisticsVO statisticsVO);
+}

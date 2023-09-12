@@ -1,0 +1,367 @@
+package com.fudian.szhjg.util.excel;
+
+
+import com.alibaba.fastjson2.JSON;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
+import com.fudian.common.config.RuoYiConfig;
+import com.fudian.common.utils.uuid.IdUtils;
+import com.fudian.szhjg.pojo.TJianji;
+import com.fudian.szhjg.pojo.TJuanji;
+import com.fudian.szhjg.pojo.TMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+/**
+ * 2023/2/24
+ */
+@Slf4j
+public class ExcelUtil {
+
+    private static String realPath = RuoYiConfig.getProfile();
+
+
+    public static String getPath() {
+        return realPath + "/";
+    }
+
+
+    public static List<TJuanji> readExcel(File file, List<TMapper> mapperList) {
+        Map<String, TMapper> map = mapperList.stream().collect(
+                Collectors.toMap(TMapper::getMetadataName, Function.identity()));
+        /*获取需要的默认字段*/
+        List<String> tMappers = mapperList.stream().filter(m -> m.getBerSet().equals("2")).map(TMapper::getMetadataName).collect(Collectors.toList());
+        //读取工作簿对象
+        Workbook workbook = selectExcel(file.getPath());
+        //总sheet页
+        int numberOfSheets = workbook.getNumberOfSheets();
+        List<TJuanji> lists = new ArrayList<>();
+        /*验证表头*/
+        try {
+            List<String> headerList = getHeaderList(workbook);
+            List<String> collect = tMappers.stream()
+                    .filter(d1 ->
+                            headerList.stream()
+                                    .anyMatch(d2 -> Objects.equals(d1, d2)))
+                    .collect(Collectors.toList());
+            Set<String> set1 = new HashSet<>(collect);
+            tMappers.removeIf(set1::contains);
+            if (tMappers.size() > 0) {
+                throw new RuntimeException("缺少关键表头字段：" + tMappers.get(0));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        for (int k = 0; k < numberOfSheets; k++) {
+            // 通过工作簿找到对应的sheet
+            Sheet sheet = workbook.getSheetAt(k);
+            // 获取一共有多少行
+            int maxRow = sheet.getLastRowNum();
+            //获取表头
+            if (maxRow == 0) {
+                continue;
+            }
+            Row rowOne = sheet.getRow(0);
+            for (int i = 1; i <= maxRow; i++) {
+                // 获取具体的每一行
+                Row row = sheet.getRow(i);
+                // 获取这行有多少个单元格
+                short lastCellNum = row.getLastCellNum();
+                Map<String, String> templateMap = new HashMap();
+                for (int j = 0; j < lastCellNum; j++) {
+                    Cell cellOne = rowOne.getCell(j);
+                    cellOne.setCellType(CellType.STRING);
+                    String one = cellOne.getStringCellValue();
+                    if (map.containsKey(one)) {
+                        TMapper entity = map.get(one);
+                        //判断该字段是否在模板中
+                        Cell cell = row.getCell(j);
+                        cell.setCellType(CellType.STRING);
+                        String stringCellValue = cell.getStringCellValue();
+                        if (StringUtils.hasText(stringCellValue)) {
+                            //String metadataRegular = entity.getMetadataRegular();
+
+                            String attr = entity.getSourceName();
+//                            log.info("标准长度{},读取的长度{}", entity.getMetadataLong().length(), stringCellValue.length());
+                            templateMap.put(attr, stringCellValue);
+                        }
+                    }
+                }
+                if (!templateMap.isEmpty()) {
+                    log.info("解析完成一条:" + templateMap + "\n");
+                    templateMap.put("id", IdUtils.simpleUUID());
+                    TJuanji tJuanji = JSON.parseObject(JSON.toJSONString(templateMap), TJuanji.class);
+                    lists.add(tJuanji);
+                } else {
+                    log.info("解析失败一条:EXCEL文件{}:中{},第{}行未匹配成功", file.getName(), sheet.getSheetName(), row.getRowNum());
+                }
+            }
+        }
+        return lists;
+    }
+
+    public static List<String> getHeaderList(Workbook workbook) throws IOException {
+        // 获取第一个工作表
+        Sheet sheet = workbook.getSheetAt(0);
+        // 获取第一行
+        Row headerRow = sheet.getRow(0);
+        // 遍历每个单元格，获取表头数据
+        Iterator<Cell> cellIterator = headerRow.cellIterator();
+        List<String> headerList = new ArrayList<>();
+        while (cellIterator.hasNext()) {
+            Cell cell = cellIterator.next();
+            headerList.add(cell.getStringCellValue());
+        }
+        // 关闭资源
+        workbook.close();
+        return headerList;
+    }
+
+    /**
+     * xls/xlsx都使用的Workbook
+     */
+    public static Workbook selectExcel(String fileName) {
+        Workbook wb = null;
+        if (fileName == null) {
+            return null;
+        }
+        String extString = fileName.substring(fileName.lastIndexOf("."));
+        InputStream is = null;
+        try {
+            is = new FileInputStream(fileName);
+            if (".xls".equals(extString)) {
+                return new HSSFWorkbook(is);
+            } else if (".xlsx".equals(extString)) {
+                return new XSSFWorkbook(is);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return wb;
+    }
+
+
+    public static File checkAndStorageFile(MultipartFile multipartFile) {
+        if (multipartFile.isEmpty()) {
+            return null;
+        }
+
+        //获取文件名
+        String fileName = multipartFile.getOriginalFilename();
+        log.info("上传的文件名：" + fileName);
+        //获取文件后缀名
+        assert fileName != null;
+        String suffixName = fileName.substring(fileName.lastIndexOf("."));
+        log.info("文件后缀名：" + suffixName);
+        //获取运行路径
+//        getCanonicalPath
+        //设置文件存储路径
+        String filePath = getPath();
+        //加入时间戳防止重名
+        DateFormat dateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+        String date2 = dateFormat.format(System.currentTimeMillis());
+        String path = filePath;
+//        File file = new File(path);
+        File dest = new File(path, date2 + fileName);
+        //检测是否存在该目录
+        if (!dest.getParentFile().exists()) {
+            dest.getParentFile().mkdirs();
+        }
+        //写入文件
+        try {
+            log.info("文件存储路径：" + dest.getPath());
+            FileUtils.copyInputStreamToFile(multipartFile.getInputStream(), dest);
+            return dest;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+            dest.deleteOnExit();
+        }
+    }
+
+
+    public static List<TJianji> readExcelFile(File file, List<TMapper> mapperList, Map<String, String> fileInformation, List<TMapper> berSetMappers) {
+        Map<String, TMapper> map = mapperList.stream().collect(
+                Collectors.toMap(TMapper::getMetadataName, Function.identity()));
+
+        map.put("页数", new TMapper("页数", "ys"));
+        map.put("页码", new TMapper("页码", "ym"));
+        Map<String, Integer> objectObjectHashMap = berSetMappers.stream().collect(Collectors.toMap(TMapper::getMetadataName, TMapper::getBerSort));
+        /*获取需要的默认字段*/
+        List<String> tMappers = berSetMappers.stream().filter(m -> m.getBerSet().equals("2")).map(TMapper::getMetadataName).collect(Collectors.toList());
+        tMappers.add("件号");
+        tMappers.add("页数");
+        tMappers.add("页码");
+        //读取工作簿对象
+        Workbook workbook = selectExcel(file.getPath());
+        /*验证表头*/
+        try {
+            List<String> headerList = getHeaderList(workbook);
+            List<String> collect = tMappers.stream()
+                    .filter(d1 ->
+                            headerList.stream()
+                                    .anyMatch(d2 -> Objects.equals(d1, d2)))
+                    .collect(Collectors.toList());
+            Set<String> set1 = new HashSet<>(collect);
+            tMappers.removeIf(set1::contains);
+            if (tMappers.size() > 0) {
+                throw new RuntimeException("缺少关键表头字段：" + tMappers.get(0));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        //总sheet页
+        int numberOfSheets = workbook.getNumberOfSheets();
+        List<TJianji> lists = new ArrayList<>();
+        try {
+            for (int k = 0; k < numberOfSheets; k++) {
+                // 通过工作簿找到对应的sheet
+                Sheet sheet = workbook.getSheetAt(k);
+                // 获取一共有多少行
+                int maxRow = sheet.getLastRowNum();
+                //获取表头
+                if (maxRow == 0) {
+                    continue;
+                }
+                String bh = "";
+                Row rowOne = sheet.getRow(0);
+                for (int i = 1; i < maxRow; i++) {
+                    // 获取具体的每一行
+                    Row row = sheet.getRow(i);
+                    // 获取这行有多少个单元格
+                    short lastCellNum = row.getLastCellNum();
+                    Map<String, String> templateMap = new HashMap();
+                    //存储规则数据map = {HashMap@14459}  size = 12
+                    Map<Integer, String> integers = new TreeMap<>();
+                    for (int j = 0; j < lastCellNum; j++) {
+                        Cell cellOne = rowOne.getCell(j);
+                        cellOne.setCellType(CellType.STRING);
+                        String one = cellOne.getStringCellValue();
+                        if (map.containsKey(one)) {
+                            TMapper entity = map.get(one);
+                            Cell cell = row.getCell(j);
+                            cell.setCellType(CellType.STRING);
+                            String stringCellValue = cell.getStringCellValue();
+                            if (StringUtils.hasText(stringCellValue)) {
+                                //String attr = "attr" + entity.getAttrOrdinal();
+                                String attr = entity.getSourceName();
+//                                log.info("标准长度{},读取的长度{}", entity.getMetadataLong().length(), stringCellValue.length());
+                                if (objectObjectHashMap.containsKey(entity.getMetadataName())) {
+                                    Integer integer = objectObjectHashMap.get(entity.getMetadataName());
+                                    integers.put(integer, stringCellValue);
+                                }
+                                templateMap.put(attr, stringCellValue);
+                            }
+                            /*添加默认数据*/
+                        }
+                        if (one.equals("件号")) {
+                            Cell cell = row.getCell(j);
+                            cell.setCellType(CellType.STRING);
+                            String stringCellValue = cell.getStringCellValue();
+                            bh = stringCellValue;
+                        }
+                    }
+                    if (integers.keySet().size() > 0) {
+                        StringBuilder sb = new StringBuilder();
+                        for (Integer integer : integers.keySet()) {
+                            sb.append(integers.get(integer));
+                            sb.append("-");
+                        }
+                        log.info("匹配关键字:{}", sb.deleteCharAt(sb.length() - 1));
+                        if (fileInformation.containsKey(sb.toString())) {
+                            String s = fileInformation.get(sb.toString());
+                            templateMap.put("ajId", s);
+                            if (!templateMap.isEmpty()) {
+                                log.info("解析完成一条:" + templateMap + "\n", "，档号：" + sb + "-" + bh);
+                                templateMap.put("bh", sb + "-" + bh);
+                                templateMap.put("jh", bh);
+                                TJianji jianji = JSON.parseObject(JSON.toJSONString(templateMap), TJianji.class);
+                                /*添加页*/
+                                if (jianji.getYs() != null && jianji.getYm() != null) {
+                                    if (jianji.getYs() > 0) {
+                                        /*页码为1时*/
+                                        if (jianji.getYm() == 1) {
+                                            for (int j = jianji.getYm(); j <= jianji.getYs(); j++) {
+                                                if (j == 1) {
+                                                    lists.add(new TJianji(IdUtils.simpleUUID(), jianji.getAjId(),
+                                                            jianji.getJh(),
+                                                            j,
+                                                            (j+jianji.getYs()-1),
+                                                            j,
+                                                            jianji.getYs(),
+                                                            "是",
+                                                            jianji.getBh()));
+                                                } else {
+                                                    lists.add(new TJianji(IdUtils.simpleUUID(), jianji.getAjId(),
+                                                            jianji.getJh(),
+                                                            null,
+                                                            null,
+                                                            j,
+                                                            null,
+                                                            "否",
+                                                            jianji.getBh()));
+                                                }
+                                            }
+                                        } else {
+                                            /*页码不为1时*/
+                                            int ym = jianji.getYm();
+                                            for (int j = 1; j <= jianji.getYs(); j++) {
+                                                if (ym == jianji.getYm()) {
+                                                    lists.add(new TJianji(IdUtils.simpleUUID(), jianji.getAjId(),
+                                                            jianji.getJh(),
+                                                            ym,
+                                                            (ym+jianji.getYs()-1),
+                                                            ym,
+                                                            jianji.getYs(),
+                                                            "是",
+                                                            jianji.getBh()));
+                                                } else {
+                                                    lists.add(new TJianji(IdUtils.simpleUUID(), jianji.getAjId(),
+                                                            jianji.getJh(),
+                                                            null,
+                                                            null,ym,
+                                                            null,
+                                                            "否",
+                                                            jianji.getBh()));
+                                                }
+                                                ym = ym + 1;
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    /*没有页码或页数数据*/
+                                    lists.add(jianji);
+                                }
+                            }
+                        } else {
+                            log.info("解析失败一条:EXCEL文件{}:中{},第{}行未匹配成功", file.getName(), sheet.getSheetName(), row.getRowNum());
+                        }
+                    } else {
+                        log.warn("匹配规则不正确或未找到:EXCEL文件{}:中{},第{}行未匹配成功", file.getName(), sheet.getSheetName(), row.getRowNum());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.info(e.toString());
+            e.printStackTrace();
+        }
+        return lists;
+    }
+
+}
+

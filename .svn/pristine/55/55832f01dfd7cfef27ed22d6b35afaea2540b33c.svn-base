@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.fudian.szhjg.mapper.TMapperMapper">
+  <resultMap id="BaseResultMap" type="com.fudian.szhjg.pojo.TMapper">
+    <!--@mbg.generated-->
+    <!--@Table t_mapper-->
+    <id column="id" jdbcType="VARCHAR" property="id" />
+    <result column="create_by" jdbcType="VARCHAR" property="createBy" />
+    <result column="create_time" jdbcType="TIMESTAMP" property="createTime" />
+    <result column="update_by" jdbcType="VARCHAR" property="updateBy" />
+    <result column="update_time" jdbcType="TIMESTAMP" property="updateTime" />
+    <result column="da_id" jdbcType="VARCHAR" property="daId" />
+    <result column="points" jdbcType="VARCHAR" property="points" />
+    <result column="source_name" jdbcType="VARCHAR" property="sourceName" />
+    <result column="metadata_id" jdbcType="VARCHAR" property="metadataId" />
+    <result column="metadata_name" jdbcType="VARCHAR" property="metadataName" />
+    <result column="metadata_type" jdbcType="VARCHAR" property="metadataType" />
+    <result column="metadata_mode" jdbcType="VARCHAR" property="metadataMode" />
+    <result column="metadata_length" jdbcType="VARCHAR" property="metadataLength" />
+    <result column="metadata_regular" jdbcType="VARCHAR" property="metadataRegular" />
+    <result column="is_not_null" jdbcType="VARCHAR" property="isNotNull" />
+    <result column="sort" jdbcType="INTEGER" property="sort" />
+    <result column="display_set" jdbcType="VARCHAR" property="displaySet" />
+    <result column="display_sort" jdbcType="INTEGER" property="displaySort" />
+    <result column="display_width" jdbcType="INTEGER" property="displayWidth" />
+    <result column="enter_set" jdbcType="VARCHAR" property="enterSet" />
+    <result column="enter_sort" jdbcType="INTEGER" property="enterSort" />
+    <result column="description_set" jdbcType="VARCHAR" property="descriptionSet" />
+    <result column="description_sort" jdbcType="INTEGER" property="descriptionSort" />
+    <result column="ber_set" jdbcType="VARCHAR" property="berSet" />
+    <result column="ber_sort" jdbcType="INTEGER" property="berSort" />
+  </resultMap>
+  <sql id="Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Update_By_Example_Where_Clause">
+    <!--@mbg.generated-->
+    <where>
+      <foreach collection="example.oredCriteria" item="criteria" separator="or">
+        <if test="criteria.valid">
+          <trim prefix="(" prefixOverrides="and" suffix=")">
+            <foreach collection="criteria.criteria" item="criterion">
+              <choose>
+                <when test="criterion.noValue">
+                  and ${criterion.condition}
+                </when>
+                <when test="criterion.singleValue">
+                  and ${criterion.condition} #{criterion.value}
+                </when>
+                <when test="criterion.betweenValue">
+                  and ${criterion.condition} #{criterion.value} and #{criterion.secondValue}
+                </when>
+                <when test="criterion.listValue">
+                  and ${criterion.condition}
+                  <foreach close=")" collection="criterion.value" item="listItem" open="(" separator=",">
+                    #{listItem}
+                  </foreach>
+                </when>
+              </choose>
+            </foreach>
+          </trim>
+        </if>
+      </foreach>
+    </where>
+  </sql>
+  <sql id="Base_Column_List">
+    <!--@mbg.generated-->
+    id, create_by, create_time, update_by, update_time, da_id, points, source_name, metadata_id, 
+    metadata_name, metadata_type, metadata_mode, metadata_length, metadata_regular, is_not_null,
+    sort, display_set, display_sort, display_width, enter_set, enter_sort, description_set,
+    description_sort, ber_set, ber_sort
+  </sql>
+  <select id="selectByExample" parameterType="com.fudian.szhjg.pojo.TMapperExample" resultMap="BaseResultMap">
+    <!--@mbg.generated-->
+    select
+    <if test="distinct">
+      distinct
+    </if>
+    <include refid="Base_Column_List" />
+    from t_mapper
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+    <if test="orderByClause != null">
+      order by ${orderByClause}
+    </if>
+  </select>
+  <delete id="deleteByExample" parameterType="com.fudian.szhjg.pojo.TMapperExample">
+    <!--@mbg.generated-->
+    delete from t_mapper
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </delete>
+  <select id="countByExample" parameterType="com.fudian.szhjg.pojo.TMapperExample" resultType="java.lang.Long">
+    <!--@mbg.generated-->
+    select count(*) from t_mapper
+    <if test="_parameter != null">
+      <include refid="Example_Where_Clause" />
+    </if>
+  </select>
+  <update id="updateByExampleSelective" parameterType="map">
+    <!--@mbg.generated-->
+    update t_mapper
+    <set>
+      <if test="record.id != null">
+        id = #{record.id,jdbcType=VARCHAR},
+      </if>
+      <if test="record.createBy != null">
+        create_by = #{record.createBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.createTime != null">
+        create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.updateBy != null">
+        update_by = #{record.updateBy,jdbcType=VARCHAR},
+      </if>
+      <if test="record.updateTime != null">
+        update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      </if>
+      <if test="record.daId != null">
+        da_id = #{record.daId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.points != null">
+        points = #{record.points,jdbcType=VARCHAR},
+      </if>
+      <if test="record.sourceName != null">
+        source_name = #{record.sourceName,jdbcType=VARCHAR},
+      </if>
+      <if test="record.metadataId != null">
+        metadata_id = #{record.metadataId,jdbcType=VARCHAR},
+      </if>
+      <if test="record.metadataName != null">
+        metadata_name = #{record.metadataName,jdbcType=VARCHAR},
+      </if>
+      <if test="record.metadataType != null">
+        metadata_type = #{record.metadataType,jdbcType=VARCHAR},
+      </if>
+      <if test="record.metadataMode != null">
+        metadata_mode = #{record.metadataMode,jdbcType=VARCHAR},
+      </if>
+      <if test="record.metadataLength != null">
+        metadata_length = #{record.metadataLength,jdbcType=VARCHAR},
+      </if>
+      <if test="record.metadataRegular != null">
+        metadata_regular = #{record.metadataRegular,jdbcType=VARCHAR},
+      </if>
+      <if test="record.isNotNull != null">
+        is_not_null = #{record.isNotNull,jdbcType=VARCHAR},
+      </if>
+      <if test="record.sort != null">
+        sort = #{record.sort,jdbcType=INTEGER},
+      </if>
+      <if test="record.displaySet != null">
+        display_set = #{record.displaySet,jdbcType=VARCHAR},
+      </if>
+      <if test="record.displaySort != null">
+        display_sort = #{record.displaySort,jdbcType=INTEGER},
+      </if>
+      <if test="record.displayWidth != null">
+        display_width = #{record.displayWidth,jdbcType=INTEGER},
+      </if>
+      <if test="record.enterSet != null">
+        enter_set = #{record.enterSet,jdbcType=VARCHAR},
+      </if>
+      <if test="record.enterSort != null">
+        enter_sort = #{record.enterSort,jdbcType=INTEGER},
+      </if>
+      <if test="record.descriptionSet != null">
+        description_set = #{record.descriptionSet,jdbcType=VARCHAR},
+      </if>
+      <if test="record.descriptionSort != null">
+        description_sort = #{record.descriptionSort,jdbcType=INTEGER},
+      </if>
+      <if test="record.berSet != null">
+        ber_set = #{record.berSet,jdbcType=VARCHAR},
+      </if>
+      <if test="record.berSort != null">
+        ber_sort = #{record.berSort,jdbcType=INTEGER},
+      </if>
+    </set>
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+  <update id="updateByExample" parameterType="map">
+    <!--@mbg.generated-->
+    update t_mapper
+    set id = #{record.id,jdbcType=VARCHAR},
+      create_by = #{record.createBy,jdbcType=VARCHAR},
+      create_time = #{record.createTime,jdbcType=TIMESTAMP},
+      update_by = #{record.updateBy,jdbcType=VARCHAR},
+      update_time = #{record.updateTime,jdbcType=TIMESTAMP},
+      da_id = #{record.daId,jdbcType=VARCHAR},
+      points = #{record.points,jdbcType=VARCHAR},
+      source_name = #{record.sourceName,jdbcType=VARCHAR},
+      metadata_id = #{record.metadataId,jdbcType=VARCHAR},
+      metadata_name = #{record.metadataName,jdbcType=VARCHAR},
+      metadata_type = #{record.metadataType,jdbcType=VARCHAR},
+      metadata_mode = #{record.metadataMode,jdbcType=VARCHAR},
+      metadata_length = #{record.metadataLength,jdbcType=VARCHAR},
+      metadata_regular = #{record.metadataRegular,jdbcType=VARCHAR},
+      is_not_null = #{record.isNotNull,jdbcType=VARCHAR},
+      sort = #{record.sort,jdbcType=INTEGER},
+      display_set = #{record.displaySet,jdbcType=VARCHAR},
+      display_sort = #{record.displaySort,jdbcType=INTEGER},
+      display_width = #{record.displayWidth,jdbcType=INTEGER},
+      enter_set = #{record.enterSet,jdbcType=VARCHAR},
+      enter_sort = #{record.enterSort,jdbcType=INTEGER},
+      description_set = #{record.descriptionSet,jdbcType=VARCHAR},
+      description_sort = #{record.descriptionSort,jdbcType=INTEGER},
+      ber_set = #{record.berSet,jdbcType=VARCHAR},
+      ber_sort = #{record.berSort,jdbcType=INTEGER}
+    <if test="_parameter != null">
+      <include refid="Update_By_Example_Where_Clause" />
+    </if>
+  </update>
+</mapper>

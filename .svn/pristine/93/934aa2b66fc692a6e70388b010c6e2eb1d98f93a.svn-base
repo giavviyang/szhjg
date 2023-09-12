@@ -1,0 +1,398 @@
+<template>
+  <div class="app-plate">
+    <div class="chart-wrapper">
+      <el-form :model="queryForm" ref="queryForm" size="small"  v-hasPermi="['szhjg:ywgl:setfield:xmaintenance:search']"
+               :inline="true" @submit.native.prevent style="margin-top: 0; margin-bottom: 0;">
+        <el-form-item label="字段名称" prop="fieldName">
+          <el-input v-model="queryForm.fieldName"  clearable style="width: 200px" class="rt-input" size="mini"
+                    @keyup.enter.native="batchSearch"/>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" icon="el-icon-search" size="mini" @click="batchSearch">搜索</el-button>
+        </el-form-item>
+      </el-form>
+      <el-row :gutter="10" class="mb8">
+        <el-col :span="1.5">
+          <el-button type="primary" plain icon="el-icon-plus" size="mini" @click="addEditDownBox"
+                     v-hasPermi="['szhjg:ywgl:setfield:xmaintenance:addUpdata']">新增/修改</el-button>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button type="danger" plain icon="el-icon-delete" size="mini" @click="deleteDownBox"
+                     v-hasPermi="['szhjg:ywgl:setfield:xmaintenance:delete']">删除</el-button>
+        </el-col>
+      </el-row>
+      <TableMetadata class="tablePage" :tableData="modelTable" ref="modelTable" :hasIndex="false" :total="total"
+                     :rowId="rowId" :pageSize="queryParams.pageSize" :pageNum="queryParams.pageNum"
+                     @handleSelectionChange="handleSelectionChange" @handleChange="handleChange">
+        <template slot="table">
+          <el-table-column type="index" label="序号" width="55" show-overflow-tooltip>
+            <template slot-scope="scope">
+              {{ scope.row.rowIndex }}
+            </template>
+          </el-table-column>
+          <el-table-column show-overflow-tooltip v-for="(item,index) in tableColumn" :key="item.id"
+                           :prop="item.prop" :label="item.label" :min-width="item.width" :formatter="item.formatter"
+                           :class-name="item.className">
+          </el-table-column>
+        </template>
+      </TableMetadata>
+    </div>
+
+    <el-dialog title="新增/修改下拉框选项"  width="50%" :visible.sync="dialogFormVisible1" append-to-body resize remember
+               :close-on-click-modal="false" :close-on-press-escape="false" class="dialog-style dialog-basic"
+               :before-close="beforeClose2">
+      <el-row>
+        <el-col :span="24" style="height: 20%">
+          <el-col :span="24" style="height: 20%;" :style="chooseRightLayout">
+            <el-form :model="tableEdit" ref="tableEdit" size="small" :inline="true" :rules="editRules">
+              <el-form-item label="元数据字段名称" prop="metadataName">
+                <el-select v-model="tableEdit.metadataName" placeholder="请选择" size="mini" clearable filterable
+                           style="width: 200px" @change="changeType">
+                  <el-option v-for="item in chooseOptions" :key="item.value" :label="item.label" :value="item.value"/>
+                </el-select>
+              </el-form-item>
+            </el-form>
+          </el-col>
+        </el-col>
+        <el-col :span="24" style="height: 80%">
+          <el-col :span="24" style="height: calc(100vh - 86px)" :style="sheetRightLayout">
+            <TableMetadata style="height:100%" :tableData="editTableData" :isPage="false" :hasSelection="false" :isTitle="true">
+              <template slot="table">
+                <el-table-column align="center" label="选项名称" prop="dictLabel" min-width="100">
+                  <template slot-scope="scope">
+                    <el-input v-model="scope.row.dictLabel" placeholder="" size="mini"/>
+                  </template>
+                </el-table-column>
+                <!--<el-table-column align="center" label="代码" prop="dictValue" min-width="100">
+                  <template slot-scope="scope">
+                    <el-input v-model="scope.row.dictValue" placeholder="" size="mini"/>
+                  </template>
+                </el-table-column>-->
+                <!--<el-table-column align="center" label="备注" prop="remark" min-width="100">
+                  <template slot-scope="scope">
+                    <el-input v-model="scope.row.remark" placeholder="" size="mini"/>
+                  </template>
+                </el-table-column>-->
+                <el-table-column align="center" label="展示顺序" width="120">
+                  <template slot-scope="scope">
+                    <el-button type="text" size="small" :disabled="scope.$index==0"
+                               @click="editUp(scope.row,scope.$index)">上移
+                    </el-button>
+                    <el-button type="text" size="small" :disabled="scope.$index+1 == editTableData.length"
+                               @click="editDown(scope.row,scope.$index)">下移
+                    </el-button>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="120" class-name="operation">
+                  <template slot-scope="scope">
+                    <el-button type="text" size="mini" @click="editShowItem(editTableData,scope.$index)" v-if="scope.$index===editTableData.length-1">
+                      新增
+                    </el-button>
+                    <el-button type="text" size="mini" :disabled="scope.$index===0"
+                               @click="deleteEditItem(editTableData,scope.$index)">移除
+                    </el-button>
+                  </template>
+                </el-table-column>
+
+              </template>
+            </TableMetadata>
+          </el-col>
+        </el-col>
+      </el-row>
+      <div slot="footer" class="dialog-footer">
+        <el-button size="mini" plain @click="beforeClose2">取消</el-button>
+        <el-button size="mini" plain type="primary" @click="editFormSave('tableEdit')">保存</el-button>
+      </div>
+    </el-dialog>
+
+  </div>
+</template>
+
+<script>
+import TableMetadata from "@/components/public/MainBody/TableMetadata";
+import { queryDropDownList } from '@/api/szhjg/ywgl/xmaintenance';
+import { queryChooseFields1, queryChooseFields2 } from '@/api/szhjg/ywgl/xmaintenance';
+import { addChooseFields, queryFromDropList, deleteChooseFields } from '@/api/szhjg/ywgl/xmaintenance';
+
+
+export default {
+  name: "index",
+  components: { TableMetadata },
+  data() {
+    return {
+      // 遮罩层
+      loading: true,
+      //搜索
+      queryForm: {
+        fieldName: '',
+      },
+      queryParams: {
+        pageSize: 20,
+        pageNum: 1,
+        metadataName: '',
+      },
+      total: 0,
+      rowId: 'id',
+      modelTable: [],
+      tableColumn: [
+        {label: '元数据字段名称', prop: 'metadataName', width: '100' },
+        {label: '选项名称', prop: 'dictLabel', width: '100' },
+        //{label: '排序', prop: 'dictSort', width: '100' },
+        {label: '创建人', prop: 'createBy', width: '80' },
+        {label: '创建时间', prop: 'createTime', width: '150'},
+      ],
+      selectedGridCheck: [],  //选中数据
+
+
+      //弹窗
+      dialogFormVisible1: false,
+      //元数据下拉框
+      chooseOptions: [],
+      //新增/修改
+      editTableData: [],
+      tableEdit:{
+        metadataName:''
+      },
+      editRules: {
+        metadataName:[
+          {required: true, message: '请选择字段类型', trigger: 'blur,change'}
+        ],
+      },
+
+      //弹窗选择框布局
+      chooseRightLayout: {width:'100%', padding:'10px 10px 0 10px'},
+      //弹窗表单布局
+      sheetRightLayout: {width:'100%', padding:'5px 10px 10px 10px', height:'calc(60vh - 86px)'},
+
+    }
+  },
+
+  mounted() {
+    this.handleQuery();
+  },
+  created() {
+    this.queryChooseList();
+  },
+
+  methods: {
+    //上部搜索
+    batchSearch() {
+      this.queryParams.metadataName = this.queryForm.fieldName;
+      this.handleQuery();
+    },
+    //分页器
+    handleChange(pageSize, pageNum) {
+      this.queryParams.pageSize = pageSize;
+      this.queryParams.pageNum = pageNum;
+      this.handleQuery();
+    },
+    //查询模板
+    handleQuery() {
+      queryDropDownList(this.queryParams).then(response => {
+        this.modelTable = response.rows;
+        this.total = response.total;
+        if (this.modelTable) {
+          this.modelTable.forEach((item, index) => {
+            item.rowIndex = (this.queryParams.pageNum - 1) * this.queryParams.pageSize + index + 1
+          })
+        }
+      })
+    },
+    //表格复选框
+    handleSelectionChange(selection) {
+      this.selectedGridCheck = selection
+    },
+
+    //查询全部元数据字段
+    queryChooseList(){
+      queryChooseFields1().then(response => {
+        this.chooseOptions = response.map((item) => {
+          return item
+        })
+      })
+    },
+
+    //删除
+    deleteDownBox(){
+      if (!this.selectedGridCheck || this.selectedGridCheck === [] || this.selectedGridCheck.length === 0) {
+        this.$message({
+          message: '请至少选择一条数据',
+          type: 'warning'
+        });
+      } else {
+        this.$confirm('此操作将永久删除选中数据, 是否继续?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+        }).then(() => {
+          let ids = this.selectedGridCheck.map(item => {return item.id})
+          deleteChooseFields(ids).then(res => {
+            if (res.code == "200") {
+              this.$message({message: "数据保存成功", type: 'success'})
+              this.handleQuery();
+            }
+          })
+        }).catch(() => {});
+      }
+    },
+
+    //新增/修改
+    addEditDownBox(){
+      this.tableEdit.metadataName = this.chooseOptions[0].value;
+      let metaName = this.tableEdit.metadataName;
+      this.editFieldsList(metaName)
+      this.dialogFormVisible1 = true;
+    },
+    //下拉框切换查询
+    changeType(val) {
+      this.editTableData = [];
+      this.editFieldsList(val)
+    },
+    //查询指定数据
+    editFieldsList(metaName){
+      queryFromDropList({metadataName: metaName}).then(response => {
+        if (response && response.rows && response.rows.length > 0) {
+          this.editTableData = response.rows;
+        } else {
+          const tb = {dictLabel:'', dictValue:'', remark:'', dictSort: 0,};
+          this.editTableData.push(tb);
+        }
+      })
+    },
+    //设置映射弹窗内修改映射
+    editShowItem(arr) {
+      let len = this.editTableData.length == 0 ? 0 : this.editTableData[this.editTableData.length - 1].dictSort + 1;
+      let obj = {dictLabel:'', dictValue:'', remark:'', dictSort: len,};
+      arr.push(obj);
+    },
+    // 修改移除映射
+    deleteEditItem(arr, index) {
+      arr.splice(index, 1);
+    },
+    //修改展示上移方法
+    editUp(row, index) {
+      let upData = this.editTableData[index - 1];
+      let data = this.editTableData[index];
+      const upOrder = upData.dictSort;
+      upData.dictSort = data.dictSort;
+      data.dictSort = upOrder;
+      this.editTableData.splice(index - 1, 1);
+      this.editTableData.splice(index, 0, upData);
+    },
+    //修改展示下移方法
+    editDown(row, index) {
+      let downData = this.editTableData[index + 1];
+      let data = this.editTableData[index];
+      const downOrder = downData.dictSort;
+      downData.dictSort = data.dictSort;
+      data.dictSort = downOrder;
+      this.editTableData.splice(index + 1, 1);
+      this.editTableData.splice(index, 0, downData);
+    },
+    //修改保存
+    editFormSave(tableEdit){
+      this.$refs[tableEdit].validate(valid => {
+        if (valid) {
+          this.tableEdit.mappingOptionList = this.editTableData
+          const _this = this;
+          addChooseFields(this.tableEdit).then(response => {
+            if (response.code == "200") {
+              _this.$message({message: "数据保存成功", type: 'success'})
+              _this.editTableData = [];
+              _this.handleQuery();
+              _this.dialogFormVisible1 = false;
+            }
+          })
+        }else {return false}
+      })
+    },
+    //修改按钮取消
+    beforeClose2(){
+      this.editTableData = [];
+      this.dialogFormVisible1 = false;
+    },
+
+  }
+}
+</script>
+
+<style scoped lang="scss">
+.el-form-item--small.el-form-item{
+  margin-bottom: 5px;
+}
+.app-plate {
+  padding: 10px;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  .github-corner {
+    position: absolute;
+    top: 0;
+    border: 0;
+    right: 0;
+  }
+  .chart-wrapper {
+    width: 100%;
+    height: calc(100% - 28px);
+    .tablePage {
+      height: calc(100% - 65px);
+    }
+  }
+}
+
+//禁止输入框输入,字体颜色黑色
+.rt-input ::v-deep .el-input__inner{
+  color:  #000000;
+}
+
+// 基本信息弹框
+.dialog-basic {
+  margin-left: 10px;
+  .form-basic {
+    margin-bottom: 5px;
+    line-height: 25px;
+    border-bottom: 1px solid #ccc;
+    //margin-left: 15px;
+    //margin-right: 15px;
+    font-size: 14px;
+    font-weight: bold;
+  }
+  .form-imgs {
+    position: relative;
+    height: 100%;
+    margin-bottom: 5px;
+    line-height: 25px;
+    border-bottom: 1px solid #ccc;
+    font-size: 14px;
+    font-weight: bold;
+    .img-viewr__wrapper{
+      position: absolute;
+    }
+    ::v-deep .icon__circle-close{
+      display: none;
+    }
+    ::v-deep .img-viewr__canvas{
+      overflow: hidden;
+    }
+    .imgs {
+      display: flex;
+    }
+    .img {
+      width: 150px;
+      height: 100px;
+      border: 1px solid #EEE;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px;
+    }
+    .img img {
+      max-width: 100%;
+      max-height: 100%;
+      cursor: pointer;
+    }
+  }
+
+}
+
+</style>

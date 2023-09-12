@@ -1,0 +1,296 @@
+<template>
+  <div class="home">
+    <div class="top-box">
+      <div class="top-box-item">
+        <svg-icon class="svgicon" icon-class="Tab_yonghuguanli"></svg-icon>
+        <div class="top-box-tit">
+          <div>累计访问</div>
+          <div>{{ total }}</div>
+        </div>
+      </div>
+      <div class="top-box-item">
+        <svg-icon class="svgicon" icon-class="duigou" style="zoom: 4.5"></svg-icon>
+        <div class="top-box-tit">
+          <div>已处理任务</div>
+          <div>{{ assignmentNum.ywc }}</div>
+        </div>
+      </div>
+      <div class="top-box-item">
+        <svg-icon class="svgicon" icon-class="shizhong" style="zoom: 4.5"></svg-icon>
+        <div class="top-box-tit">
+          <div>未处理任务</div>
+          <div>{{ assignmentNum.wwc }}</div>
+        </div>
+      </div>
+      <div class="top-box-item">
+        <svg-icon class="svgicon" icon-class="Tab_shujujiankong"></svg-icon>
+        <div class="top-box-tit">
+          <div>全部任务</div>
+          <div>300</div>
+        </div>
+      </div>
+    </div>
+    <div class="down-box">
+      <div class="down-box-button" @click="toPage('添加任务')" id="id1" @mouseover="changeColor('id1')" @mouseout="resetColor('id1')">
+        <svg-icon class="svgsty" icon-class="wenjianjia"></svg-icon>
+        <div class="down-box-content">
+          <div>添加任务</div>
+          <div>Add Task</div>
+        </div>
+      </div>
+      <div class="down-box-button" @click="toPage('分件')" id="id2" @mouseover="changeColor('id2')" @mouseout="resetColor('id2')">
+        <svg-icon class="svgsty" icon-class="laodonghetong"></svg-icon>
+        <div class="down-box-content">
+          <div>分件</div>
+          <div>Split Pieces</div>
+        </div>
+      </div>
+      <div class="down-box-button" @click="toPage('图像扫描')" id="id3" @mouseover="changeColor('id3')" @mouseout="resetColor('id3')">
+        <svg-icon class="svgsty" icon-class="yinshua"></svg-icon>
+        <div class="down-box-content">
+          <div>图像扫描</div>
+          <div>Image Scanning</div>
+        </div>
+      </div>
+      <div class="down-box-button"  @click="toPage('图像处理')" id="id4" @mouseover="changeColor('id4')" @mouseout="resetColor('id4')">
+        <svg-icon class="svgsty" icon-class="tupian"></svg-icon>
+        <div class="down-box-content">
+          <div>图像处理</div>
+          <div>image Processing</div>
+        </div>
+      </div>
+      <div class="down-box-button"  @click="toPage('图像质检')" id="id5" @mouseover="changeColor('id5')" @mouseout="resetColor('id5')">
+        <svg-icon class="svgsty" icon-class="jiance"></svg-icon>
+        <div class="down-box-content">
+          <div>图像质检</div>
+          <div>Image Quality Inspection</div>
+        </div>
+      </div>
+      <div class="down-box-button"  @click="toPage('图像处理和质检')" id="id6" @mouseover="changeColor('id6')" @mouseout="resetColor('id6')">
+        <svg-icon class="svgsty" icon-class="renwu"></svg-icon>
+        <div class="down-box-content">
+          <div>图像处理和质检</div>
+          <div>Image processing and quality inspection</div>
+        </div>
+      </div>
+      <div class="down-box-button" @click="toPage('目录著录')" id="id7" @mouseover="changeColor('id7')" @mouseout="resetColor('id7')">
+        <svg-icon class="svgsty" icon-class="hetong"></svg-icon>
+        <div class="down-box-content">
+          <div>目录著录</div>
+          <div>Bibliographic Description</div>
+        </div>
+      </div>
+      <div class="down-box-button" @click="toPage('数据质检')" id="id8" @mouseover="changeColor('id8')" @mouseout="resetColor('id8')">
+        <svg-icon class="svgsty" icon-class="shenpi"></svg-icon>
+        <div class="down-box-content">
+          <div>数据质检</div>
+          <div>Data Quality Inspection</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import {getAssignment, getTotal} from "@/api";
+
+export default {
+  name: "Index",
+  data() {
+    return {
+      total: 0,
+      assignmentNum: 0,
+    };
+  },
+  created() {
+    this.getTotalNum()
+    this.getAssignmentNum()
+  },
+  methods: {
+    changeColor(id) {
+      document.getElementById(id).style.backgroundColor = '#7af5f5';
+      document.getElementById(id).style.cursor = 'pointer';
+    },
+    resetColor(id) {
+      document.getElementById(id).style.backgroundColor = 'white';
+      document.getElementById(id).style.cursor = 'default';
+    },
+
+    getTotalNum(){
+      getTotal().then((res)=>{
+        this.total = res.total
+      })
+    },
+    getAssignmentNum(){
+      getAssignment().then((res)=>{
+        this.assignmentNum = res.data
+      })
+    },
+    toPage(name){
+      switch(name) {
+        case '添加任务':
+          this.$router.push ({path: '/szhjg/sjjg/tjrw'})
+          break;
+        case '分件':
+          this.$router.push ({path: '/szhjg/sjjg/fjrw'})
+          break;
+        case '图像扫描':
+          this.$router.push ({path: '/szhjg/sjjg/txsm'})
+          break;
+        case '图像处理':
+          this.$router.push ({path: '/szhjg/sjjg/txcl'})
+          break;
+        case '图像质检':
+          this.$router.push ({path: '/szhjg/sjjg/txzj'})
+          break;
+        case '图像处理和质检':
+          this.$router.push ({path: '/szhjg/sjjg/txzj'})
+          break;
+        case '目录著录':
+          this.$router.push ({path: '/szhjg/sjjg/mlzl'})
+          break;
+        case '数据质检':
+          this.$router.push ({path: '/szhjg/sjjg/sjzj'})
+          break;
+        // default:
+        //   默认代码块
+      }
+    }
+  }
+};
+</script>
+
+<style scoped lang="scss">
+
+::v-deep .navbar {
+  margin-bottom: 20px;
+}
+
+.home {
+  width: 100%;
+  height: calc(100vh - 50px);
+
+  .tit {
+    width: 100%;
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 40px;
+    padding: 0 20px;
+  }
+
+  .top-box {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    padding: 20px;
+
+    .top-box-item {
+      width: 24%;
+      height: 150px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+
+      .top-box-tit {
+        width: 60%;
+
+        div:first-child {
+          font-size: 14px;
+          color: #fff;
+          margin-left: 20px;
+        }
+
+        div:last-child {
+          font-size: 38px;
+          color: #fff;
+          font-weight: bold;
+          margin-left: 20px;
+        }
+      }
+
+      .svgicon {
+        zoom: 5;
+      }
+    }
+
+    .top-box-item:first-child {
+      box-shadow: #ff9dbd 0px 1px 1px 0px inset, #ff5a83 0px 30px 60px -30px;
+      background-image: linear-gradient(to right, #ff9dbd, #ff5a83);
+    }
+
+    .top-box-item:nth-child(2) {
+      box-shadow: #d5aaff 0px 1px 1px 0px inset, #ae70ff 0px 30px 60px -30px;
+      background-image: linear-gradient(to right, #d5aaff, #ae70ff);
+    }
+
+    .top-box-item:nth-child(3) {
+      box-shadow: #87e0be 0px 1px 1px 0px inset, #55c693 0px 30px 60px -30px;
+      background-image: linear-gradient(to right, #87e0be, #55c693);
+    }
+
+    .top-box-item:nth-child(4) {
+      box-shadow: #e5df68 0px 1px 1px 0px inset, #e4c849 0px 30px 60px -30px;
+      background-image: linear-gradient(to right, #e5df68, #e4c849);
+    }
+  }
+
+  .down-box {
+    width: 100%;
+    padding: 20px;
+    height: calc(100% - 220px);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    align-items: center;
+
+    .down-box-button {
+      width: 24%;
+      height: 48%;
+      border-radius: 10px;
+      border: 1px solid #eeeeee;
+      box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      .svgsty {
+        zoom: 5;
+      }
+
+      .down-box-content {
+        width: calc(58% - 20px);
+        height: 65px;
+        margin-left: 20px;
+
+        div:first-child {
+          font-size: 24px;
+          color: #333;
+          font-weight: 600;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+
+        div:last-child {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;  // 控制多行的行数
+          -webkit-box-orient: vertical;
+          font-size: 18px;
+          color: #999093;
+          font-weight: 200;
+          margin-top: 5px;
+        }
+      }
+    }
+
+    .down-box-button:nth-child(-n+4) {
+      margin-bottom: 2%;
+    }
+  }
+}
+</style>
+

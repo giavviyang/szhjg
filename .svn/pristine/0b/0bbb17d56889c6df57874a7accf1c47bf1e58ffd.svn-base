@@ -1,0 +1,175 @@
+<template>
+  <div class="content">
+    <h4 hidden="hidden">XX管理信息系统.</h4>
+    <p hidden="hidden">
+      该页面是业务系统主页面，演示调用插件时如何传递参数。实现方式如下：<br/>
+      <!--T01101  busi:{batchId:""}
+        T01105  "busi":{"fileId":"1312034101SL","pageIndex":"2"}
+        fileId:13120361000J
+      -->
+    </p><!--<br/>--> <!--传递参数：-->
+    <textarea hidden="hidden" id="busiparam" style="width:800px;height:100px;">
+			{
+				"height":800,
+			    "width":800,
+				"busi":{
+					"batchId":"202222"
+				 },
+				"sysHead": {
+					"byOpeSys":"99711110000",
+					"opeOrg": "T7537",
+					"opeSys": "99711110000",
+					"opeTime": "20140813121212",
+					"opeType": "T01101",
+					"opeUser": "zhangshaowei"
+				}
+
+			}
+
+    </textarea>
+    <!--"batchId":"987456",-->
+    <div>
+      <!--      <input type="button" @click="showPlugin();" value="打开插件" />
+            <el-button class="save" type="primary" size="small" @click="showPlugin()">打开插件</el-button>-->
+      <span style="font-size: 14px;color: #7e7c7c;margin: 3px;font-style: italic;">如插件未正常显示请<a @click="showPlugin()" style="text-decoration: underline;">点此刷新</a></span>
+      <!--      <el-button type="info" plain icon="el-icon-d-caret" size="mini" @click="showPlugin()" style="margin: 2px">打开插件</el-button>-->
+    </div>
+
+    <!--******* 该div是存放档案管理插件的位置，最小尺寸：宽800，高600 ******-->
+    <div id="divArchivePlugin" style="width:883px; height:733px;">
+
+    </div>
+  </div>
+</template>
+
+
+<script>
+export default {
+  name: "index",
+  data() {
+    return {
+
+    }
+  },
+
+  created() {
+
+  },
+  mounted() {
+    this.showPlugin();
+  },
+
+  methods: {
+    /* 该函数给业务系统用，实现插件调用，每调用一次传入一次参数*****
+             * createArchive
+             * 参数: container : string, 存放插件的 div 标签名称，比如上面的 divArchivePlugin
+             * 参数: busidata  : string, 是通过 jQuery JSON.stringfy 转换后的 JSON 字符串，包含所有必须的业务参数，字符串小于 2M
+             *                   如需接收返回结果，则在 JSON 字符串中增加两个参数如下：
+             *                   （1） recvUuid，业务结果标志，一般可用 GUID。比如： busidata.recvUuid = ''
+             *                   （2） recvUrl，为除域名和端口外的绝对地址。比如： busidata.recvUrl = '/amspluginrecv.jsp'
+             *
+             * 示例：var busidata = {....};
+             *       busidata.recvUuid = '12144011cbf74ec8996666322a53c001';
+             *       busidata.recvUrl = '/amspluginrecv.jsp';
+             *       createArchive('myDiv', JSON.stringfy(busidata));
+             */
+    createArchive(container, busidata) {
+      var oCon = document.getElementById(container);
+      if(oCon == null || typeof(oCon) == "undefined") {
+        console.log("div 标签不存在: " + container);
+        return;
+      }
+      while(oCon.hasChildNodes()) {
+        oCon.removeChild(oCon.childNodes[0]);
+      }
+      var iframe = document.createElement('iframe');
+      iframe.style.minWidth = 800;
+      iframe.style.minHeight = 600;
+      iframe.style.width = '100%'; // 外观尺寸由业务系统指定
+      iframe.style.height = '100%';
+      iframe.style.display = "none";
+      var state = 0;
+      iframe.onload = function() {
+        if(state === 1) {
+          iframe.style.display = "block";
+        } else if(state === 0) {
+          state = 1;
+          iframe.contentWindow.location = 'http://127.0.0.1:58610/99711110000/upload.html';
+        }
+      };
+      iframe.src = window.location.href; // 可以指向一个空内容的文件
+      iframe.name = busidata;
+      oCon.appendChild(iframe);
+    },
+
+    // 点击按钮调用插件示例
+    showPlugin() {
+      // 业务参数: ******* json 字符串格式(对象需用 jQuery JSON.stringfy 转换后做参数) ********
+      var strParam = document.getElementById('busiparam').value;
+      var jsonParam = JSON.parse(strParam);
+      // 接收结果
+      jsonParam.recvUuid = '12144011cbf74ec8996666322a53c001';
+      jsonParam.recvUrl = 'http://localhost/proxy.html';
+      // 外部指定插件外观尺寸，大小变化时需要重新加载
+      jsonParam.width = 883;
+      jsonParam.height = 600;
+      // 接收返回结果页面
+      this.createArchive('divArchivePlugin', JSON.stringify(jsonParam));
+    },
+
+  }
+}
+
+</script>
+
+
+<style lang="scss" scoped>
+* {
+  outline: none;
+}
+
+body {
+  background-color: #789;
+  margin: 0;
+  padding: 0;
+  font: 16px/1.4 Helvetica, Arial, sans-serif;
+  font: 16px/1.4 Helvetica, Arial, sans-serif;
+}
+
+div.content {
+  //width: 100%;
+  height: 100%;
+  //margin: 2em auto;
+  //padding: 20px 50px;
+  background-color: #eaeaea;
+  //border-radius: 1em;
+}
+
+label {
+  display: inline-block;
+  min-width: 7em;
+}
+
+input {
+  border: 1px solid #ccc;
+  padding: 0.2em;
+}
+
+a:link,
+a:visited {
+  color: #69c;
+  text-decoration: none;
+}
+
+@media (max-width: 700px) {
+  body {
+    background-color: #fff;
+  }
+  div.content {
+    width: 1000px;
+    margin: 0 auto;
+    padding: 1em;
+  }
+}
+
+</style>

@@ -1,0 +1,1030 @@
+<template>
+  <div class="picedit">
+    <div class="picleft">
+      <div class="dashboard-editor-container">
+        <!--右上方表单-->
+        <div style="height: 35%">
+          <div class="chart-wrapper" style="white-space: nowrap; overflow-x: auto; overflow-y: hidden;">
+            <el-form :model="queryForm" ref="queryForm" size="small" :inline="true" v-hasPermi="['szhjg:sjjg:txzj:search']">
+              <el-form-item label="选择批次" prop="pcId">
+                <el-cascader v-model="queryForm.pcId" :options="projectOptions" :props="projectProps" clearable
+                             size="mini" filterable :show-all-levels="false" @change="handleChange"
+                             style="width: 160px;height: 28px;line-height: 28px;"></el-cascader>
+              </el-form-item>
+              <el-form-item label="编号" prop="bianHao">
+                <el-input v-model="queryForm.bianHao" placeholder="请输入查询内容" clearable style="width: 160px"
+                          size="mini"
+                          @keyup.enter.native="specifyTaskNameSearch"/>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" icon="el-icon-search" size="mini" @click="specifyTaskNameSearch">搜索
+                </el-button>
+              </el-form-item>
+            </el-form>
+            <el-row :gutter="10" class="mb8">
+              <el-col  :span="1.5">
+                <el-button type="primary" plain icon="el-icon-collection-tag" size="mini" @click="receiveTask"
+                           v-hasPermi="['szhjg:sjjg:txzj:taskReceive']">领取任务</el-button>
+                <el-button type="success" plain icon="el-icon-s-promotion" size="mini" @click="submitTask"
+                           v-hasPermi="['szhjg:sjjg:txzj:taskSub']">任务提交</el-button>
+                <el-button type="warning" plain icon="el-icon-circle-close" size="mini" @click="submitRework"
+                           v-hasPermi="['szhjg:sjjg:txzj:taskRework']">返工</el-button>
+                <el-button type="info" plain icon="el-icon-edit-outline" size="mini" @click="viewRecord"
+                           v-hasPermi="['szhjg:sjjg:txzj:taskRecord']">查看记录</el-button>
+              </el-col>
+            </el-row>
+            <!--表格信息-->
+            <div v-if="taskColumns.length<=0" class="taskColumnsFalse">暂无数据</div>
+            <el-table v-else row-key="id" :data="taskList" border width="100%" height="calc(100% - 110px)" ref="taskTable"
+                      slot="table"
+                      @selection-change="taskHandleSelectionChange" @row-click="taskHandleRowClick"
+                      @select="taskSelect"
+                      :row-style="taskClass">
+              <el-table-column type="selection" width="40"></el-table-column>
+              <el-table-column align="center" :index="taskGetIndex" type="index" label="序号"
+                               width="55"></el-table-column>
+              <el-table-column align="center" v-for="(item,index) in taskColumns" :key="index" :label="item.label"
+                               :prop="item.prop" :min-width="item.width" :formatter="item.formatter"
+                               show-overflow-tooltip>
+              </el-table-column>
+            </el-table>
+            <div class="page" style="margin-top: 5px;">
+              <el-pagination :page-sizes="[20, 30, 50, 100]" :page-size="pageSizeTask" :current-page="pageNumTask"
+                             layout="total, sizes, prev, pager, next, jumper" :total="totalTask"
+                             @size-change="pageSizeTaskS"
+                             @current-change="pageCurrentTask" :pager-count="5"/>
+            </div>
+          </div>
+        </div>
+        <!--右下方表单-->
+        <div style="height: 65%">
+          <div class="chart-wrapper" style="white-space: nowrap; overflow-x: auto; overflow-y: hidden;">
+            <el-form :model="queryForm" ref="queryForm" size="small" :inline="true"
+                     style="margin-top: 0; margin-bottom: 0;">
+              <el-form-item label="编号" prop="bh">
+                <el-input v-model="queryForm.bh" :disabled="true" clearable style="width: 200px" class="rt-input"
+                          size="mini"/>
+              </el-form-item>
+              <el-form-item style="color:blue;font-size:18px;font-weight:bold;">总页数：{{ picNum ? picNum.countTotal : 0 }}页</el-form-item>
+              <el-form-item style="color:blue;font-size:18px;font-weight:bold;">图片总数：{{ picNum ? picNum.pictureTotal : 0 }}页</el-form-item>
+            </el-form>
+            <el-row :gutter="10" class="mb8">
+              <el-col  :span="1.5">
+                <el-button type="info" plain icon="el-icon-sort" size="mini" @click="toggleExpandAll"
+                           v-hasPermi="['szhjg:sjjg:txzj:toggle']">展开/折叠</el-button>
+              </el-col>
+            </el-row>
+            <el-table row-key="id" :data="subdivisionList" border width="100%" height="calc(100% - 118px)" slot="table"
+                      ref="subdivisionTable" @selection-change="subHandleSelectionChange" @row-click="subHandleRowClick"
+                      :row-class-name="tableRowClassName" @select="subSelect" :row-style="subClass" v-if="refreshTable"
+                      :default-expand-all="isExpandAll" :tree-props="{children: 'children', hasChildren: 'hasChildren'}">
+              <el-table-column type="selection" width="40"></el-table-column>
+              <el-table-column align="center" :index="subdivisionGetIndex" type="index" label="序号" width="55"></el-table-column>
+              <el-table-column align="center" v-for="(item,index) in subdivisionColumns" :key="index" :label="item.label"
+                               :prop="item.prop" :min-width="item.width" show-overflow-tooltip :formatter="item.formatter">
+              </el-table-column>
+            </el-table>
+            <div class="page" style="margin-top: 5px;">
+              <el-pagination :page-sizes="[20, 30, 50, 100]" :page-size="pageSizeSub" :current-page="pageNumSub"
+                             layout="total, sizes, prev, pager, next, jumper" :total="totalSub"
+                             @size-change="pageSizeSubS"
+                             @current-change="pageCurrentSub" :pager-count="5"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="picright">
+      <!--<div v-if="visible" style="font-weight: 700;text-align: center">当前第{{ index + 1 }}件,共{{ urls.length }}张图片</div>-->
+      <div v-if="visible && urls.length>0"
+           style="font-size:18px;font-weight:700">当前第{{ index + 1 }}张,共有{{ urls.length }}张图片
+      </div>
+      <div v-else-if="visible" style="font-size:18px;font-weight: 700">暂无内容</div>
+      <div style="height: calc(100% - 20px)">
+        <div class="imgs">
+          <div v-for="(urls, i) in urls" class="img" :key="`c_${i}`" @click="() => showImagesByComponent(i)">
+            <img :src="urls"/>
+          </div>
+        </div>
+        <ImgViewr :visible="visible" :urls="urls" :initialIndex="index" :on-show="onShow" :on-switch="changeHandle"
+                  :on-close="() => (visible = false)"/>
+      </div>
+    </div>
+
+    <!--领取任务-->
+    <ViewingReceive v-if="dialogReceive" ref="ViewingReceive" @TaskClaimCloseData="TaskClaimCloseData"></ViewingReceive>
+
+    <!--返工-->
+    <el-dialog title="返工" :visible.sync="dialogFormVisible3" width="580px" append-to-body resize remember
+               class="dialog-style dialog-basic" :close-on-click-modal="false" :close-on-press-escape="false">
+      <el-form ref="reworkForm" :model="reworkForm" :inline="true" :rules="reworkRules" label-width="80px">
+        <el-form-item label="当前工序" prop="dqgx" >
+          <el-input v-model="reworkForm.dqgx" placeholder="" :disabled="true" clearable size="mini" class="rt-input"
+                    style="width: 180px" />
+        </el-form-item>
+        <el-form-item label="返工工序" prop="reworkId" >
+          <el-select v-model="reworkForm.reworkId" placeholder="选择工序" size="mini" clearable style="width: 180px">
+            <el-option v-for="item in reworkIdOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item><br>
+        <el-form-item label="返工原因" prop="reworkCause" >
+          <el-input v-model="reworkForm.reworkCause" type="textarea" placeholder="请输入返工原因" clearable size="mini"
+                    style="width:450px" :onkeyup="reworkForm.reworkCause = reworkForm.reworkCause.replace(/\s/g,'')"/>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button size="mini" plain  @click="dialogFormVisible3=false">取 消</el-button>
+        <el-button size="mini" plain type="primary" @click="insertSubmitRework('reworkForm')">确 定</el-button>
+      </div>
+    </el-dialog>
+
+    <!--查看记录-->
+    <ViewingRecord v-if="dialogViewing" ref="ViewingRecord"></ViewingRecord>
+
+  </div>
+</template>
+
+<script>
+import {Message} from "element-ui";
+import ViewingReceive from '@/views/szhjg/sjjg/ViewingReceive/index';
+import ViewingRecord from '@/views/szhjg/sjjg/ViewingRecord/index';
+import { getUserProfile } from "@/api/system/user";
+import { queryDisplayGx, queryProjectBatch } from "@/api/szhjg/szhjgCommon";
+import { taskDynamicListHead } from "@/api/szhjg/dynamicCommon";
+import { queryTxzjTaskList, getThumbnail } from "@/api/szhjg/sjjg/txzj";
+import { searchSubdivisionList } from "@/api/szhjg/sjjg/fj";
+import { getPicNumber } from "@/api/szhjg/sjjg/approachCommon";
+import { processingSubmitPass, queryNextGxName, reworkQueryProject, reworkSubmitPass } from "@/api/szhjg/sjjg/approachCommon";
+import ImgViewr, {showImages} from "vue-img-viewr";
+import 'vue-img-viewr/styles/index.css'
+import {getPictureImage} from "@/api/szhjg/rwgl/rwgl";
+
+
+
+const params = {
+  pageNum: 1,
+  pageSize: 20
+}
+export default {
+  components: {ViewingReceive, ViewingRecord, ImgViewr},
+  data() {
+    return {
+      //弹窗
+      dialogReceive: false, //领取任务
+      dialogViewing: false,
+      dialogFormVisible3: false,   //返工
+      //存放当前登入用户名称
+      acquireNickName: '',
+      //遮罩层
+      loading: true,
+      //是否展开，默认全部折叠
+      isExpandAll: false,
+      //重新渲染表格状态
+      refreshTable: true,
+      //批次项目信息
+      projectOptions: [],
+      projectProps: {label: 'projectName', value: 'benId', children: 'pcName'},
+      queryForm: {
+        pcId: [],
+        bianHao: "",
+        bh: '',
+      },
+      //存放批次id
+      batchId: '',
+      //存放案卷id
+      recordsId: '',
+      //存放页面展示工序
+      optionsProcedure: [],
+      //查询案卷页数和图片页数
+      picNum: null,
+
+      /*------------------------------        任务(案卷)的参数     ----------------------------------------------------*/
+      totalTask: 0,
+      pageNumTask: 1,
+      pageSizeTask: 20,
+      //任务复选框选中
+      taskGridCheck: [],
+      //任务列表
+      taskList: [],
+      //任务表头
+      taskColumns: [],
+
+      //返工
+      reworkForm: {
+        dqgx: '', anJuanId: '', reworkId: '', reworkCause: '',
+      },
+      reworkIdOptions: [],
+      reworkRules:{
+        reworkId:[
+          {required: true, message: '返工工序不能为空', trigger: 'blur'},
+        ],
+        reworkCause:[
+          {required: true, message: '返工原因不能为空', trigger: 'blur'},
+          {min: 0, max:300, message: '输入内容长度不得超过300', trigger: 'blur' }
+        ]
+      },
+
+      /*------------------------------        分件(案件)的参数     ----------------------------------------------------*/
+      totalSub: 0,
+      pageNumSub: 1,
+      pageSizeSub: 20,
+      //分件复选框选中
+      subGridCheck: [],
+      //分件列表
+      subdivisionList: [],
+      //分件表头
+      subdivisionColumns: [
+        {label: '件号', prop: 'jh', width: '80'},
+        {label: '开始页数', prop: 'ksys', width: '80'},
+        {label: '终止页数', prop: 'zzys', width: '80'},
+        {label: '页码', prop: 'ym', width: '80'},
+        {label: '页数', prop: 'ys', width: '80'},
+        {label: '是否首页', prop: 'sfsy', width: '80', formatter: function (row, column, cellValue) {
+            return cellValue === '是' ? '是' : '';
+          }
+        },
+      ],
+
+      /*------------------------------          图片的参数         ----------------------------------------------------*/
+      urls: [],
+      index: 0,
+      visible: false,
+      instance: null,
+
+    }
+  },
+
+  created() {
+    this.getOptionsData();
+    this.queryGxOptions();
+    this.getNickName();
+  },
+
+  mounted() {},
+
+  watch:{
+    projectOptions(val){
+      this.queryForm.pcId = val[0].benId
+      if(val[0].pcName.length > 0){
+        this.queryForm.pcId = [val[0].benId,val[0].pcName[0].benId]
+      }
+      this.getTableHeaders(this.queryForm.pcId[1]);
+      params.pcId = this.queryForm.pcId[1];
+      this.queryTaskNameList(params);
+      this.batchId = this.queryForm.pcId[1];
+    }
+  },
+
+  methods: {
+//查询当前登入用户
+    getNickName() {
+      getUserProfile().then(response => {
+        this.acquireNickName = response.data.nickName
+      });
+    },
+    //默认查询项目批次
+    getOptionsData() {
+      queryProjectBatch({gxId: 5}).then((res) => {
+        this.projectOptions = res.data;
+      })
+    },
+    //查询页面动态展示工序
+    queryGxOptions() {
+      queryDisplayGx().then(res => {
+        this.optionsProcedure = res.map((item) => {
+          return item;
+        });
+      });
+    },
+
+    //切换项目批次之后进行查询
+    handleChange(value) {
+      this.taskColumns = [];
+      this.taskList = [];
+      this.getTableHeaders(value[1]);
+      params.pcId = value[1];
+      this.queryTaskNameList(params);
+      this.batchId = value[1];
+    },
+    //查询动态表头展示字段
+    getTableHeaders(dynamic) {
+      taskDynamicListHead({headBatch: dynamic, headPoints: 0, headType: 0}).then((res) => {
+        this.taskColumns = res.data
+      })
+    },
+
+
+    /*----------------------------------        案卷的参数     --------------------------------------------------------*/
+    //搜索
+    specifyTaskNameSearch() {
+      let params = {
+        pageNum: 1,
+        pageSize: 20,
+        pcId: this.queryForm.pcId[1],
+        bh: this.queryForm.bianHao,
+      }
+      this.queryTaskNameList(params);
+    },
+    queryTaskNameList(params) {
+      const _this = this
+      queryTxzjTaskList(params, {emulateJSON: true}).then(function (response) {
+        if(response.rows != undefined && response.rows != "" && response.rows != null){
+          response.rows.forEach((value, index) => {
+            const arr = _this.optionsProcedure;
+            for (var i in arr) {
+              if (value.dqgx == arr[i].value) {
+                value.dqgx = arr[i].label;
+              }
+            }
+          })
+        }
+        _this.taskList = response.rows;
+        _this.totalTask = response.total;
+        _this.loading = false;
+      })
+    },
+    //分页
+    pageCurrentTask(val) {
+      this.pageNumTask = val;
+      params.pageNum = val;
+      params.pageSize = this.pageSizeTask;
+      params.pcId = this.queryForm.pcId[1];
+      params.bh = this.queryForm.bianHao;
+      this.queryTaskNameList(params);
+    },
+    pageSizeTaskS(val) {
+      this.pageSizeTask = val;
+      params.pageSize = val;
+      params.pageNum = this.pageNumTask;
+      params.pcId = this.queryForm.pcId[1];
+      params.bh = this.queryForm.bianHao;
+      this.queryTaskNameList(params);
+    },
+
+    // 复选框事件
+    taskHandleSelectionChange(val) {
+      this.taskGridCheck = val;
+      if (this.taskGridCheck.length == 1) {
+        this.queryForm.bh = this.taskGridCheck[0].bh;
+        this.recordsId = this.taskGridCheck[0].id;
+        this.searchSubList(this.taskGridCheck[0].id);
+      }
+    },
+    //行点击事件
+    taskHandleRowClick(row, column, event) {
+      this.getThumbnailList(row)
+      this.getPicNum(row)
+      this.$refs.taskTable.clearSelection();
+      if (this.taskGridCheck.length === 0) {
+        this.$refs.taskTable.toggleRowSelection(row)
+        return;
+      }
+      this.$refs.taskTable.toggleRowSelection(row)
+    },
+    async taskSelect(selection, row) {
+      //执行完清空操作在进行下面的勾选
+      await this.$refs.taskTable.clearSelection();
+      if (selection.length === 0) return;
+      this.$refs.taskTable.toggleRowSelection(row, true);
+    },
+    taskClass({row, rowIndex}) {
+      if (this.taskGridCheck.includes(row)) {
+        return {
+          "background": "#b9deff !important", "color": "blue",
+        }
+      } else {
+        return {
+          "——tablebackground": "#F5F7FA",
+        }
+      }
+    },
+    //翻页后序号连贯
+    taskGetIndex($index) {
+      //表格序号
+      return (this.pageNumTask - 1) * this.pageSizeTask + $index + 1;
+    },
+
+    //领取任务
+    receiveTask(){
+      this.dialogReceive = true;
+      let gxId = "5";
+      this.$nextTick(() => {
+        this.$refs.ViewingReceive.init(gxId);
+      });
+    },
+    //关闭页面弹窗重新刷新
+    TaskClaimCloseData(val) {
+      this.specifyTaskNameSearch();
+    },
+    //任务提交
+    submitTask(){
+      const _this = this;
+      if (this.taskGridCheck.length == 1){
+        const arr = _this.optionsProcedure;
+        for (var i in _this.optionsProcedure) {
+          if (this.taskGridCheck[0].dqgx == arr[i].label) {
+            this.taskGridCheck[0].dqgx = arr[i].value;
+          }
+        }
+        let a = this.taskGridCheck[0].id;
+        let b = this.taskGridCheck[0].dqgx;
+        queryNextGxName({id:a, gxName:b}).then(response =>{
+          var o;
+          if (response.msg =="图像质检"){
+            if(this.taskGridCheck[0].cataloged =="著录完成"){
+              o = "当前工序 :图像质检。已是最后一道工序,是否提交!"
+            }else {
+              this.$message({message: '当前工序 :图像质检。已是最后一道工序，未进行目录著录，无法提交完成！', duration: 3000, type: 'error'});
+              return;
+            }
+          }else {
+            o = "当前工序：图像质检，下一道工序为："+response.msg+"。是否提交!"
+          }
+          this.$confirm(o, '提示', {
+            confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
+          }).then(() => {
+            processingSubmitPass({ajId:a, gxId:b}).then(response =>{
+              if (response.code == 200) {
+                _this.$message({message:"提交成功", type: 'success'})
+                _this.specifyTaskNameSearch();
+                _this.subdivisionList = [];
+                _this.totalSub = 0;
+              } else {
+                this.$message({message: "提交失败", type: 'error'});
+              }
+            })
+          }).catch(() => {});
+        })
+      }else {
+        Message.warning("请选择一条任务!");
+      }
+    },
+    //任务返工
+    submitRework(){
+      if (this.taskGridCheck.length == 1){
+        this.dialogFormVisible3 = true;
+        let anJuanId = this.taskGridCheck[0].id;
+        this.reworkForm.anJuanId = anJuanId;
+        reworkQueryProject({ajId:anJuanId}).then(res => {
+          this.reworkIdOptions = res.map((item) => {
+            return item
+          });
+          this.reworkForm.dqgx = this.taskGridCheck[0].dqgx;
+        });
+      }else {
+        Message.warning("请选择一条任务!");
+      }
+    },
+    insertSubmitRework(reworkForm){
+      const _this = this;
+      this.$refs["reworkForm"].validate((valid) => {
+        if (valid) {
+          reworkSubmitPass(this.reworkForm).then(response => {
+            if (response.code == 200) {
+              _this.$message({message:"返工提交成功", type: 'success'})
+              _this.specifyTaskNameSearch();
+              _this.subdivisionList = [];
+              _this.totalSub = 0;
+              _this.dialogFormVisible3 = false;
+            } else {
+              this.$message({message: "返工提交失败", type: 'error'});
+            }
+          })
+        } else {
+          return false;
+        }
+      })
+    },
+    //查看记录
+    viewRecord(){
+      this.dialogViewing = true;
+      let gxId = "5";
+      this.$nextTick(() => {
+        this.$refs.ViewingRecord.init(gxId);
+      });
+    },
+
+    /*----------------------------------        案件的参数     --------------------------------------------------------*/
+    //查询分件列表
+    searchSubList(val) {
+      const _this = this
+      let params = {
+        pageNum: 1,
+        pageSize: 20,
+        ajId: val
+      }
+      this.searchSubNameList(params);
+    },
+    //分页
+    pageCurrentSub(val) {
+      this.pageNumSub = val
+      params.pageNum = val
+      params.pageSize = this.pageSizeSub;
+      params.ajId = this.taskGridCheck[0].id;
+      this.searchSubNameList(params)
+    },
+    pageSizeSubS(val) {
+      this.pageSizeSub = val
+      params.pageSize = val;
+      params.pageNum = this.pageNumSub;
+      params.ajId = this.taskGridCheck[0].id;
+      this.searchSubNameList(params)
+    },
+    searchSubNameList(params) {
+      const _this = this
+      searchSubdivisionList(params).then(response => {
+        _this.subdivisionList = response.rows;
+        _this.totalSub = response.total
+        _this.loading = false
+      })
+    },
+
+    //复选框事件
+    subHandleSelectionChange(val) {
+      this.subGridCheck = val;
+    },
+    tableRowClassName({row, rowIndex}){
+      row.index = rowIndex;
+      return 'rows'
+    },
+    // 行点击事件
+    subHandleRowClick(row, column) {
+      this.getPictureImageList(row)
+      this.$refs.subdivisionTable.toggleRowSelection(row, column)
+      this.$refs.subdivisionTable.clearSelection();
+      if (this.subGridCheck.length === 0) {
+        this.$refs.subdivisionTable.toggleRowSelection(row)
+        return;
+      }
+      this.$refs.subdivisionTable.toggleRowSelection(row)
+    },
+    async subSelect(selection, row) {
+      //执行完清空操作在进行下面的勾选
+      await this.$refs.subdivisionTable.clearSelection();
+      if (selection.length === 0) return;
+      this.$refs.subdivisionTable.toggleRowSelection(row, true);
+    },
+    subClass({row, rowIndex}) {
+      if (this.subGridCheck.includes(row)) {
+        return {
+          "background": "#b9deff !important", "color": "blue",
+        }
+      } else if (row['sfsy'] === '是') {
+        return {
+          "background": "#fbe3ff !important",
+        }
+      }
+    },
+    subdivisionGetIndex($index) {
+      //表格序号
+      return (this.pageNumSub - 1) * this.pageSizeSub + $index + 1;
+    },
+
+    /** 展开/折叠操作 */
+    toggleExpandAll() {
+      this.refreshTable = false;
+      this.isExpandAll = !this.isExpandAll;
+      this.$nextTick(() => {
+        this.refreshTable = true;
+      });
+    },
+
+
+    /*----------------------------------        图像的参数     --------------------------------------------------------*/
+    //获取页数和图片页数
+    getPicNum(val) {
+      getPicNumber({ajId: val.id}).then((res) => {
+        this.picNum = res.data
+      })
+    },
+    //获取缩略图
+    getThumbnailList(val) {
+      this.urls = []
+      this.visible = false
+      getThumbnail({id: val.id}).then((res) => {
+        this.urls = res.img.map((item) => {
+          return `${process.env.VUE_APP_BASE_API}/szhjgCommonController/ioReadImg2?url=${encodeURIComponent(item)}`
+        })
+      })
+    },
+
+    //通过组件方式
+    showImagesByComponent(index) {
+      this.visible = true
+      this.index = index | 0
+    },
+    onShow(isShow) {
+      // console.log(isShow)
+    },
+    changeHandle(i) {
+      this.index = i
+      // console.log(`current image index: ${i}`)
+    },
+    showImagesByJs(index) {
+      // 通过js方式显示
+      showImages({
+        urls: this.urls,
+        index,
+        onShow: this.onShow,
+        onClose: () => {
+          console.log('close with js')
+          return true
+        },
+      })
+    },
+
+    getPictureImageList(val) {
+      this.urls = []
+      this.visible = false
+      getPictureImage({ajId: val.ajId, jh: val.jh}).then((res) => {
+        this.urls = res.data.imgs.map((item, index) => {
+          return `${process.env.VUE_APP_BASE_API}/szhjgCommonController/ioReadImg2?url=${encodeURIComponent(item)}`;
+        });
+      })
+      if (val.sfsy=='是'){
+        this.showImagesByComponent(0)
+      }else {
+        this.showImagesByComponent(val.index)
+      }
+    },
+
+  }
+
+}
+
+</script>
+
+<style lang="scss" scoped>
+.el-dropdown {
+  vertical-align: top;
+  margin: 0 10px;
+}
+.el-dropdown + .el-dropdown {
+  margin-left: 15px;
+}
+.el-icon-arrow-down {
+  font-size: 12px;
+}
+
+.picedit {
+  display: flex;
+  width: 100%;
+  height: 100%;
+
+  .picleft {
+    width: 40%;
+
+    .dashboard-editor-container {
+      display: flex;
+      flex-flow: column;
+      padding: 5px;
+      width: 100%;
+      height: 100%;
+      background-color: rgb(240, 242, 245);
+      position: relative;
+
+      .github-corner {
+        position: absolute;
+        top: 0;
+        border: 0;
+        right: 0;
+      }
+
+      .chart-wrapper {
+        background: #ffffff;
+        padding: 10px 10px 0;
+        margin-bottom: 10px;
+        height: calc(100% - 5px);
+        border-radius: 8px;
+        box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1)
+      }
+
+      .btnsty {
+        display: flex;
+        align-items: center;
+      }
+    }
+
+    ::v-deep .el-table {
+      border-right:1px solid #dfe6ec;
+      color: #515a6e;
+      & > .el-table__header-wrapper {
+        & > table {
+          tr:first-of-type {
+            th {
+              background: rgba(204, 204, 204, 0.18);
+              color: #515a6e;
+              font-size: 12px;
+              //text-align: center;
+              height: 34px !important;
+              padding: 5px 0 !important;
+            }
+          }
+          tr:nth-of-type(2) {
+            th {
+              background: #fff;
+              //background: rgba(204, 204, 204, 0.05);
+              color: #515a6e;
+              font-size: 12px;
+              text-align: center;
+              padding: 0 !important;
+              height: 34px;
+              .el-input__inner {
+                border: none;
+                padding: 0;
+                height: 20px;
+              }
+            }
+          }
+          & > colgroup {
+            col {
+              &:last-of-type {
+                width: 17px !important;
+              }
+            }
+          }
+        }
+      }
+      .el-table__body-wrapper {
+        overflow: auto !important;
+        //border-right: 1px solid #dfe6ec;
+        //width: calc(100% - 1px);
+        .el-table__row {
+          td {
+            text-align: center;
+            font-size: 12px;
+            padding: 5px 0 !important;
+            &:last-child {
+              .cell {
+                display: flex;
+                //margin: 0 5px;
+                //flex-direction: column;
+                justify-content: space-around;
+                width: 100%;
+                white-space:nowrap;
+                overflow:hidden;
+                text-overflow: ellipsis;
+                //padding: 0;
+                .el-button {
+                  width: 100%;
+                  height: 100%;
+                  position: relative;
+                  top: 0;
+                  right: 0;
+                  //padding: 0;
+                  margin: 0 2px;
+                  //span{
+                  //  display: inline-block;
+                  //  height: 100%;
+                  //}
+                }
+              }
+            }
+          }
+        }
+      }
+      //滚动条
+      /**滚动条的宽度*/
+      ::-webkit-scrollbar {
+        width: 10px !important; /*竖向*/
+        height: 10px !important; /*横向*/
+      }
+      /*滚动条的滑块*/
+      ::-webkit-scrollbar-thumb {
+        background-color: #ddd !important;
+        border-radius: 8px !important;
+      }
+    }
+    ::v-deep .taskColumnsFalse{
+      width: 100%;
+      height:calc(100% - 110px);
+      border: 1px solid #ddd;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color:#dfe6ec;
+    }
+
+    .page {
+      float: right;
+      height: 38px;
+      text-align: right;
+
+      ::v-deep .el-pagination {
+        height: 28px;
+        //position: relative;
+        //margin-top: 5px;
+        font-size: 12px;
+
+        & > .el-pagination__total {
+          font-size: 12px;
+        }
+
+        & > .el-pagination__sizes {
+          .el-input {
+            input {
+              font-size: 12px;
+              height: 26px;
+            }
+          }
+        }
+
+        button {
+          background-color: transparent;
+        }
+
+        & > .el-pager {
+          li {
+            font-size: 12px;
+            background-color: transparent;
+          }
+        }
+
+        & > .el-pagination__jump {
+          font-size: 12px;
+
+          .el-input {
+            input {
+              font-size: 12px;
+              height: 26px;
+            }
+          }
+        }
+      }
+    }
+
+    .el-form-item--small.el-form-item {
+      margin-bottom: 5px;
+    }
+
+    ::v-deep .el-table tbody tr:hover > td {
+      background: var(--tablebackground) !important;
+    }
+
+    //表格鼠标悬浮时的样式 （高亮）
+    ::v-deep {
+      .el-table--enable-row-hover {
+        .el-table__body tr {
+          &:hover {
+            background: rgb(223 239 253);
+            border: 1px solid #313463;
+          }
+        }
+      }
+    }
+
+    //弹框样式
+    .dialog-style {
+      ::v-deep .el-dialog__body {
+        padding: 10px;
+      }
+
+      ::v-deep .el-dialog__header {
+        background: rgba(204, 204, 204, 0.18);
+        padding: 10px;
+      }
+
+      ::v-deep .el-dialog__title {
+        font-weight: 500;
+        font-size: 15px
+      }
+
+      ::v-deep .el-dialog__headerbtn {
+        top: 13px;
+      }
+
+      ::v-deep .el-dialog__footer {
+        background: rgba(204, 204, 204, 0.18);
+        padding-right: 15px;
+        padding: 8px;
+      }
+
+      ::v-deep .el-button + .el-button {
+        margin-left: 6px;
+      }
+    }
+
+    // 基本信息弹框
+    .dialog-basic {
+      margin-left: 10px;
+
+      .form-basic {
+        margin-bottom: 15px;
+        line-height: 30px;
+        border-bottom: 1px solid #ccc;
+        margin-left: 15px;
+        margin-right: 15px;
+      }
+    }
+
+    .fenjian ::v-deep .el-dialog {
+      left: 25%;
+    }
+
+    //弹窗样式修改
+    ::v-deep .el-dialog {
+      display: flex;
+      flex-direction: column;
+      margin: 0 !important;
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      max-height: calc(100% - 30px);
+      max-width: calc(100% - 30px);
+    }
+  }
+
+  .picright {
+    display: flex;
+    flex-flow: column;
+    width: 60%;
+    position: relative;
+
+    ::v-deep .img-viewr__wrapper{
+      margin-top: 20px;
+    }
+
+    .form-basicimg {
+      position: relative;
+      height: calc(100% - 23px);
+      margin-bottom: 5px;
+      line-height: 25px;
+      border-bottom: 1px solid #ccc;
+      //margin-left: 15px;
+      //margin-right: 15px;
+      font-size: 14px;
+      font-weight: bold;
+
+      .img-viewr__wrapper {
+        position: absolute;
+      }
+
+      ::v-deep .icon__circle-close {
+        display: none;
+      }
+
+      ::v-deep .img-viewr__canvas {
+        overflow: hidden;
+      }
+
+      .imgs {
+        display: flex;
+      }
+
+      .img {
+        width: 150px;
+        height: 100px;
+        border: 1px solid #EEE;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 20px;
+      }
+
+      .img img {
+        max-width: 100%;
+        max-height: 100%;
+        cursor: pointer;
+      }
+    }
+
+    .img-viewr__wrapper {
+      position: absolute;
+    }
+
+    ::v-deep .img-viewr__canvas {
+      overflow: hidden;
+    }
+
+    .imgs {
+      display: flex;
+    }
+
+    .img {
+      width: 150px;
+      height: 100px;
+      border: 1px solid #EEE;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 20px;
+    }
+
+    .img img {
+      max-width: 100%;
+      max-height: 100%;
+      cursor: pointer;
+    }
+
+  }
+
+}
+
+//禁止输入框输入,字体颜色黑色
+.rt-input ::v-deep .el-input__inner{
+  color:  #000000;
+}
+</style>
+
+

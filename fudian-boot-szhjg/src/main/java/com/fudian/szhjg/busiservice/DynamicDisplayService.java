@@ -1,0 +1,35 @@
+package com.fudian.szhjg.busiservice;
+
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+
+public interface DynamicDisplayService {
+
+    //项目管理--完成项目查询案卷动态展示字段
+    CommonResult completeDynamicsList(String headId);
+    //项目管理--完成项目查询文件(案件)动态字段
+    CommonResult completeDescriptionList(String headId);
+
+
+    //查询表头字段列表
+    CommonResult headDisplayList(String headId, String headPoints);
+    //查询任务表单录入字段列表
+    CommonResult formEntryList(String headId, String headPoints);
+
+
+    //根据批次查询档案id
+    String queryBatchId(String headBatch);
+
+
+    //任务管理--批量添加(新增)动态字段
+    CommonResult getsDynamicMultiple(String headId);
+
+
+    //目录著录-根据批次Id查询动态著录字段(专用)
+    CommonResult catalogueDescriptionList(String headId, String headPoints);
+
+
+    //抽检页面动态展示字段
+    CommonResult spotCheckDynamicList(String headId, String headPoints);
+
+}

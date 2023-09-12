@@ -1,0 +1,30 @@
+import request from "@/utils/request";
+
+//获取动态字段
+//获取批次管理动态字段
+export function headDisplayList(params) {
+  return request({
+    url: '/ywgl/dynamic/headDisplayList',
+    method: 'get',
+    params: params
+  })
+}
+
+//获取任务管理动态字段
+export function taskDynamicListHead(params) {
+  return request({
+    url: '/ywgl/dynamic/taskDynamicListHead',
+    method: 'get',
+    params: params
+  })
+}
+
+
+//目录著录-根据批次Id查询动态著录字段(专用)
+export function catalogueDescriptionList(params) {
+  return request({
+    url: '/ywgl/dynamic/catalogueDescriptionList',
+    method: 'get',
+    params: params
+  })
+}

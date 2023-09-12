@@ -1,0 +1,18 @@
+package com.fudian.szhjg.busiservice;
+
+import com.fudian.common.pojo.CommonGridResult;
+import com.fudian.common.pojo.CommonResult;
+
+public interface DynamicDisplayService {
+
+    //根据批次查询档案id
+    String queryBatchId(String headBatch);
+
+    //查询表头字段列表
+    CommonResult headDisplayList(String headId, String headPoints);
+    //查询任务表单录入字段列表
+    CommonResult formEntryList(String headId, String headPoints);
+
+    //目录著录-根据批次Id查询动态著录字段(专用)
+    CommonResult catalogueDescriptionList(String headId, String headPoints);
+}
